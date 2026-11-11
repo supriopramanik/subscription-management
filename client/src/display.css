@@ -222,9 +222,13 @@ html.display-active,
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: contain;
-  scrollbar-width: thin;
-  scrollbar-gutter: stable;
-  padding-right: 8px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.tv-mode .subscription-scroll-viewport::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 .tv-mode .subscription-scroll-viewport:focus-visible {
   outline: 2px solid var(--mint);
