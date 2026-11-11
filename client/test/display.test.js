@@ -50,3 +50,15 @@ test('explicit display links and remembered choices override automatic TV detect
   assert.equal(initialDisplayMode({ userAgent: 'SmartTV' }), true);
   assert.equal(initialDisplayMode({}), false);
 });
+
+test('BrowseHere identifiers enable TV layout even with a mobile or touch-capable user agent', () => {
+  for (const ua of [
+    'Mozilla/5.0 Android 12 Mobile BrowseHere/6.60',
+    'com.tcl.browser/660067 (Linux; U; Android 12)',
+    'Mozilla/5.0 Mobile Safari/6533.18.5 TCL/tclwebkit1.0.2',
+    'Mozilla/5.0 Tbrowser/2.0',
+  ]) {
+    assert.equal(isTvBrowser(ua, 1), true, ua);
+    assert.equal(initialDisplayMode({ userAgent: ua, touchPoints: 1 }), true);
+  }
+});

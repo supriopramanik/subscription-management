@@ -4,6 +4,7 @@ export const DISPLAY_MARGIN = 0.04;
 
 export function isTvBrowser(userAgent = '', touchPoints = 0) {
   return (
+    /browse[ -]?here|com\.tcl\.browser|tclwebkit|\btbrowser\//i.test(userAgent) ||
     /smart[ -]?tv|hbbtv|netcast|nettv|web[o0]s|tizen|viera|googletv|google tv|android tv|aft[a-z0-9]+|bravia|vidaa|hisense|philips.*tv|orion.*tv/i.test(
       userAgent
     ) ||
