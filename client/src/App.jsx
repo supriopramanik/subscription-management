@@ -811,7 +811,7 @@ export default function App() {
             <RefreshCw size={12} />
             {demo
               ? 'Demo data'
-              : `Synced ${syncedAt.toLocaleTimeString('en-GB', { timeZone: data.company.timezone, hour: '2-digit', minute: '2-digit' })}`}
+              : `Synced ${syncedAt.toLocaleTimeString('en-US', { timeZone: data.company.timezone, hour: '2-digit', minute: '2-digit', hour12: true })}`}
           </button>
           <span>
             SUBTRACK <span className="muted">/</span> {data.company.name}
@@ -970,11 +970,12 @@ function DisplayClock({ timezone }) {
   }, []);
   return (
     <time className="tv-clock">
-      {time.toLocaleTimeString('en-GB', {
+      {time.toLocaleTimeString('en-US', {
         timeZone: timezone,
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
+        hour12: true,
       })}
       <small>{timezone}</small>
     </time>
