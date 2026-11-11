@@ -7,7 +7,6 @@ A company subscription workspace built with **React + Vite** in `client/` and **
 The local checkout uses the company repository as the primary fetch remote. `origin` has two push URLs, so a normal `git push` sends the current branch to both repositories:
 
 - Primary: https://github.com/Compliance-BD-LTD/subscription-management
-- Secondary: https://github.com/supriopramanik/subscription-management
 
 The separate `secondary` remote is available for explicit fetch/pull operations. Git remote configuration is local to each checkout; after a fresh clone, configure both push destinations once:
 
