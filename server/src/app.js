@@ -209,6 +209,34 @@ export function createApp({ exchangeRates = exchangeRateService } = {}) {
     if (req.user.mustChangePassword) fail(403, 'Change your temporary password before continuing');
     next();
   });
+  app.post('/api/auth/email', authLimit, allow('admin'), async (req, res) => {
+    const input = z
+      .object({ email: emailSchema, currentPassword: z.string().min(1).max(256) })
+      .parse(req.body);
+    const user = await transaction(async (session) => {
+      const account = await User.findById(req.user._id).select('+passwordHash').session(session);
+      if (!(await bcrypt.compare(input.currentPassword, account.passwordHash)))
+        fail(400, 'Current password is incorrect');
+      if (input.email === account.email) fail(400, 'Enter a different email address');
+      if (await User.exists({ email: input.email }).session(session))
+        fail(409, 'This email address is already in use');
+      const previousEmail = account.email;
+      account.email = input.email;
+      await account.save({ session });
+      await Session.deleteMany({ user: account._id, _id: { $ne: req.authSession._id } }).session(
+        session
+      );
+      await log(
+        account,
+        'changed email',
+        account.name,
+        `${previousEmail} → ${account.email}`,
+        session
+      );
+      return account;
+    });
+    res.json({ user });
+  });
 
   app.get('/api/workspace', async (_req, res) => {
     const [company, subscriptions, people, payments, activities] = await Promise.all([

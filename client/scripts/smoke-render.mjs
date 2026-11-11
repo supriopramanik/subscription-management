@@ -54,6 +54,7 @@ try {
     'DetailModal',
     'EmployeeForm',
     'PasswordForm',
+    'EmailForm',
   ]) {
     const markup = renderToString(
       React.createElement(forms[name], {

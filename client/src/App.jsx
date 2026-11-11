@@ -17,6 +17,7 @@ import {
   CircleHelp,
   LogOut,
   KeyRound,
+  Mail,
   Menu,
   X,
   RefreshCw,
@@ -34,6 +35,7 @@ import {
   DetailModal,
   EmployeeForm,
   PasswordForm,
+  EmailForm,
   ConfirmModal,
 } from './forms';
 import {
@@ -450,6 +452,14 @@ export default function App() {
     setUser(result.user);
     notify('Password changed. Other sessions have been signed out.');
   }
+  async function saveEmail(form) {
+    if (demo) throw new Error('Email changes are available in your real workspace.');
+    const result = await api('/auth/email', { method: 'POST', body: form });
+    setUser(result.user);
+    await afterSave(
+      'Email changed. Use your new email to sign in. Other sessions have been signed out.'
+    );
+  }
   async function uploadFile(sub, file, kind) {
     const body = new FormData();
     body.append('file', file);
@@ -625,6 +635,17 @@ export default function App() {
               <div className="profile-menu">
                 <span>{user.email}</span>
                 <RoleBadge role={user.role} />
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      setProfileMenu(false);
+                      setModal({ type: 'email' });
+                    }}
+                  >
+                    <Mail size={15} />
+                    Change email
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setProfileMenu(false);
@@ -827,6 +848,9 @@ export default function App() {
       )}
       {modal?.type === 'password' && (
         <PasswordForm onClose={() => setModal(null)} onSave={savePassword} />
+      )}
+      {modal?.type === 'email' && isAdmin && (
+        <EmailForm user={user} onClose={() => setModal(null)} onSave={saveEmail} />
       )}
       {modal?.type === 'delete' && (
         <ConfirmModal

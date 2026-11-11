@@ -920,6 +920,67 @@ export function EmployeeForm({ employee, company, onClose, onSave }) {
   );
 }
 
+export function EmailForm({ user, onClose, onSave }) {
+  const [form, setForm] = useState({ email: '', currentPassword: '' }),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState('');
+  async function submit(e) {
+    e.preventDefault();
+    setError('');
+    setBusy(true);
+    try {
+      await onSave(form);
+      onClose();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal
+      title="Change your email"
+      subtitle="Use your new email to sign in. Other sessions will be signed out."
+      onClose={onClose}
+    >
+      <form className="modal-body" onSubmit={submit}>
+        <ErrorNote error={error} />
+        <Field label="Current email">
+          <input type="email" value={user.email} readOnly />
+        </Field>
+        <Field label="New email" hint="Choose an email address you can access.">
+          <input
+            type="email"
+            autoComplete="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            maxLength={254}
+            required
+          />
+        </Field>
+        <Field label="Current password">
+          <input
+            type="password"
+            autoComplete="current-password"
+            value={form.currentPassword}
+            onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
+            maxLength={256}
+            required
+          />
+        </Field>
+        <div className="modal-actions">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button busy={busy} type="submit" icon={Check}>
+            Update email
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 export function PasswordForm({ required, onClose, onSave, onLogout }) {
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' }),
     [busy, setBusy] = useState(false),

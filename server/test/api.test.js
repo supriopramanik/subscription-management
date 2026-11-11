@@ -330,6 +330,59 @@ test('unknown accounts and wrong passwords return the same generic message', asy
   assert.equal(b.status, 401);
   assert.equal(a.body.error, b.body.error);
 });
+test('admin email changes require the current password and preserve account access', async () => {
+  const body = { email: 'new-admin@example.invalid', currentPassword: password };
+  assert.equal((await write(request(app), 'post', '/api/auth/email', body)).status, 401);
+  assert.equal((await write(viewer, 'post', '/api/auth/email', body)).status, 403);
+  assert.equal(
+    (await write(admin, 'post', '/api/auth/email', { ...body, email: 'invalid' })).status,
+    400
+  );
+  assert.equal(
+    (await write(admin, 'post', '/api/auth/email', { ...body, currentPassword: 'wrong' })).status,
+    400
+  );
+  assert.equal(
+    (await write(admin, 'post', '/api/auth/email', { ...body, email: 'viewer@example.invalid' }))
+      .status,
+    409
+  );
+  assert.equal((await User.findById(adminUser.id)).email, 'admin@example.invalid');
+  const otherSession = request.agent(app);
+  assert.equal(
+    (await write(otherSession, 'post', '/api/auth/login', { email: adminUser.email, password }))
+      .status,
+    200
+  );
+  const changed = await write(admin, 'post', '/api/auth/email', {
+    ...body,
+    email: '  NEW-ADMIN@example.invalid  ',
+    role: 'viewer',
+  });
+  assert.equal(changed.status, 200, JSON.stringify(changed.body));
+  assert.equal(changed.body.user.id, adminUser.id);
+  assert.equal(changed.body.user.email, body.email);
+  assert.equal(changed.body.user.role, 'admin');
+  assert.equal(changed.body.user.passwordHash, undefined);
+  assert.equal((await admin.get('/api/auth/me')).body.user.email, body.email);
+  assert.equal((await otherSession.get('/api/auth/me')).status, 401);
+  assert.equal(await Session.countDocuments({ user: adminUser.id }), 1);
+  assert.equal(
+    (await write(request(app), 'post', '/api/auth/login', { email: adminUser.email, password }))
+      .status,
+    401
+  );
+  const newLogin = request.agent(app);
+  const signedIn = await write(newLogin, 'post', '/api/auth/login', {
+    email: body.email,
+    password,
+  });
+  assert.equal(signedIn.status, 200);
+  assert.equal(signedIn.body.user.id, adminUser.id);
+  assert.equal((await newLogin.get('/api/workspace')).status, 200);
+  assert.equal(await Activity.countDocuments({ action: 'changed email', actor: adminUser.id }), 1);
+});
+
 test('manager can delete a subscription without payments, while logout invalidates access', async () => {
   assert.equal((await write(manager, 'delete', `/api/subscriptions/${otherSub.id}`)).status, 200);
   assert.equal(await Subscription.exists({ _id: otherSub.id }), null);
