@@ -50,7 +50,12 @@ import {
 import { api, idOf, statsFor, ROLE_LABELS, today, advanceDate, rebaseRates } from './lib';
 import { makeDemo, demoUser } from './demo';
 import { ExchangeRateStatus } from './exchange-rates';
-import { readDisplayMode, useDisplayFit, useDisplayPreference } from './use-display';
+import {
+  readDisplayMode,
+  rememberDisplayChoice,
+  useDisplayFit,
+  useDisplayPreference,
+} from './use-display';
 
 const navItems = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -104,7 +109,10 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToast(null), 6000);
   }, []);
   const navigate = useCallback((name) => {
-    if (name !== 'overview') setTv(false);
+    if (name !== 'overview') {
+      rememberDisplayChoice(false);
+      setTv(false);
+    }
     setRoute(name);
     location.hash = name;
     setMobileNav(false);
@@ -158,7 +166,6 @@ export default function App() {
         setUser(null);
         setData(null);
         setModal(null);
-        setTv(false);
         notify('Your session has expired. Please sign in again.', 'error');
       } else {
         setSyncError(e.message);
@@ -240,6 +247,7 @@ export default function App() {
     history.replaceState(null, '', `?${params}#overview`);
   }
   async function toggleTv() {
+    rememberDisplayChoice(!tv);
     if (tv) {
       setTv(false);
       if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
@@ -740,7 +748,7 @@ export default function App() {
               onClick={toggleTv}
             >
               {tv ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-              <span>{tv ? 'Exit TV' : 'TV display'}</span>
+              <span>{tv ? 'Exit TV' : 'Fit to TV'}</span>
             </button>
             {!tv && user.role !== 'viewer' && (
               <Button icon={Plus} onClick={sharedProps.onAdd}>

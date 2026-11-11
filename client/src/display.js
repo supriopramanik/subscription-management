@@ -12,11 +12,24 @@ export function isTvBrowser(userAgent = '', touchPoints = 0) {
   );
 }
 
-export function initialDisplayMode({ search = '', saved = null, userAgent = '', touchPoints = 0 }) {
+export function initialDisplayMode({
+  search = '',
+  saved = null,
+  legacySaved = null,
+  userAgent = '',
+  touchPoints = 0,
+}) {
   const choice = new URLSearchParams(search).get('display');
   if (choice === '1' || choice === '0') return choice === '1';
   if (saved === '1' || saved === '0') return saved === '1';
+  // Earlier versions saved "0" automatically on first load. It is not a user opt-out.
+  if (legacySaved === '1') return true;
   return isTvBrowser(userAgent, touchPoints);
+}
+
+export function displayChoiceToRemember(enabled, search = '') {
+  if (enabled) return '1';
+  return new URLSearchParams(search).get('display') === '0' ? '0' : null;
 }
 
 // Keep desktop proportions on TVs reporting a 960px or 1280px viewport.

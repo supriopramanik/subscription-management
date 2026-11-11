@@ -19,6 +19,10 @@ html.display-active,
   gap: 8px;
   font-size: 11px;
   white-space: nowrap;
+  border: 1px solid #6b8b4d;
+  background: #293b20;
+  color: #d3f5af;
+  border-radius: 8px;
 }
 .app-layout.tv-mode {
   position: fixed;

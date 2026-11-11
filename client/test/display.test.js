@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fitDisplay, initialDisplayMode, isTvBrowser, DISPLAY_WIDTH } from '../src/display.js';
+import {
+  displayChoiceToRemember,
+  fitDisplay,
+  initialDisplayMode,
+  isTvBrowser,
+  DISPLAY_WIDTH,
+} from '../src/display.js';
 
 test('TV canvas stays within safe edges at common TV browser and sharing resolutions', () => {
   for (const [width, height] of [
@@ -61,4 +67,22 @@ test('BrowseHere identifiers enable TV layout even with a mobile or touch-capabl
     assert.equal(isTvBrowser(ua, 1), true, ua);
     assert.equal(initialDisplayMode({ userAgent: ua, touchPoints: 1 }), true);
   }
+});
+
+test('an old automatic off value cannot keep BrowseHere in the cropped desktop layout', () => {
+  assert.equal(initialDisplayMode({ legacySaved: '0', userAgent: 'BrowseHere/6.60' }), true);
+  assert.equal(initialDisplayMode({ legacySaved: '0', userAgent: 'Windows NT 10.0' }), false);
+  assert.equal(initialDisplayMode({ legacySaved: '1' }), true);
+  assert.equal(
+    initialDisplayMode({ saved: '0', legacySaved: '1', userAgent: 'BrowseHere' }),
+    false
+  );
+  assert.equal(initialDisplayMode({ search: '?display=1', saved: '0', legacySaved: '0' }), true);
+});
+
+test('a regular first visit never saves an implicit choice to disable TV detection', () => {
+  assert.equal(displayChoiceToRemember(false), null);
+  assert.equal(displayChoiceToRemember(false, '?demo=1'), null);
+  assert.equal(displayChoiceToRemember(true), '1');
+  assert.equal(displayChoiceToRemember(false, '?display=0'), '0');
 });
