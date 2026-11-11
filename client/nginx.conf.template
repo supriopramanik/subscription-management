@@ -15,6 +15,7 @@ server {
         proxy_set_header Host $proxy_host;
         proxy_ssl_server_name on;
         proxy_ssl_verify on;
+        proxy_ssl_verify_depth 5;
         proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
         proxy_set_header X-Real-IP $remote_addr;
         # Overwrite untrusted client forwarding chains; this is the API's one trusted proxy.
