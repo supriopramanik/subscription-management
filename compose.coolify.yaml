@@ -1,0 +1,33 @@
+# Production: select this file in Coolify's Git-based Docker Compose build pack.
+# Route the client service to subscription.compliancebd.com:8080 and
+# the server service to api.subscription.compliancebd.com:4000.
+services:
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: '4000'
+      APP_ORIGIN: https://subscription.compliancebd.com
+      COOKIE_SECURE: 'true'
+      TRUST_PROXY: '1'
+      MONGODB_URI: ${MONGODB_URI:?}
+      CLOUDINARY_BACKUP_URL: ${CLOUDINARY_BACKUP_URL:?}
+      CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-complaiance-subscriptions}
+    expose:
+      - '4000'
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://server:4000
+    expose:
+      - '8080'
+    depends_on:
+      server:
+        condition: service_healthy
