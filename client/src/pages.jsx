@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -25,6 +25,8 @@ import {
   List,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Users,
   ShieldCheck,
   Check,
@@ -211,24 +213,113 @@ export function RatesWarning({ stats, data, onSettings }) {
   ) : null;
 }
 
+function SubscriptionScroller({ children, count }) {
+  const viewportRef = useRef(null);
+  const [height, setHeight] = useState(380);
+  const [scroll, setScroll] = useState({ up: false, down: count > 8 });
+  const updateButtons = (viewport, visibleHeight = viewport.clientHeight) => {
+    const next = {
+      up: viewport.scrollTop > 1,
+      down: viewport.scrollTop + visibleHeight < viewport.scrollHeight - 1,
+    };
+    setScroll((previous) =>
+      previous.up === next.up && previous.down === next.down ? previous : next
+    );
+  };
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    const grid = viewport?.firstElementChild;
+    if (!grid?.children.length) return;
+    const measure = () => {
+      const firstEight = Array.from(grid.children).slice(0, 8);
+      const top = firstEight[0].offsetTop;
+      const nextHeight =
+        Math.max(...firstEight.map((card) => card.offsetTop + card.offsetHeight)) - top;
+      setHeight(nextHeight);
+      updateButtons(viewport, nextHeight);
+    };
+    measure();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    observer?.observe(grid);
+    const onScroll = () => updateButtons(viewport);
+    viewport.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', measure);
+    return () => {
+      observer?.disconnect();
+      viewport.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', measure);
+    };
+  }, [count, children]);
+  const move = (direction) => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const grid = viewport.firstElementChild;
+    const gap = parseFloat(getComputedStyle(grid).rowGap) || 0;
+    viewport.scrollBy({
+      top: direction * (viewport.clientHeight + gap),
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    });
+  };
+  return (
+    <div className="subscription-scroller">
+      <div
+        ref={viewportRef}
+        className="subscription-scroll-viewport"
+        style={{ height }}
+        role="region"
+        aria-label="Your subscriptions"
+        tabIndex={0}
+      >
+        {children}
+      </div>
+      {count > 8 && (
+        <div className="subscription-scroll-controls">
+          <Button
+            variant="secondary"
+            icon={ChevronUp}
+            disabled={!scroll.up}
+            onClick={() => move(-1)}
+          >
+            Scroll up
+          </Button>
+          <Button
+            variant="secondary"
+            icon={ChevronDown}
+            disabled={!scroll.down}
+            onClick={() => move(1)}
+          >
+            Scroll down
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Overview({ data, user, onOpen, onPay, onAdd, navigate, tv }) {
   const stats = statsFor(data),
     [months, setMonths] = useState(6),
-    [displayPage, setDisplayPage] = useState(0),
     currency = data.company.baseCurrency;
   const sorted = [...data.subscriptions].sort(
     (a, b) =>
       Number(isLive(b)) - Number(isLive(a)) || a.nextBillingDate.localeCompare(b.nextBillingDate)
   );
-  const displayPages = Math.max(1, Math.ceil(sorted.length / 8));
-  useEffect(() => {
-    if (!tv || displayPages < 2) return;
-    const timer = setInterval(() => setDisplayPage((p) => (p + 1) % displayPages), 20000);
-    return () => clearInterval(timer);
-  }, [tv, displayPages]);
-  const cards = tv
-    ? sorted.slice((displayPage % displayPages) * 8, (displayPage % displayPages) * 8 + 8)
-    : sorted.slice(0, 6);
+  const cards = tv ? sorted : sorted.slice(0, 6);
+  const cardsGrid = (
+    <div className={`cards-grid ${tv ? 'tv-cards' : ''}`}>
+      {cards.map((s) => (
+        <SubscriptionCard
+          key={s.id}
+          sub={s}
+          now={stats.now}
+          onOpen={onOpen}
+          onPay={onPay}
+          editable={!tv && canEdit(user, s)}
+          compact
+        />
+      ))}
+    </div>
+  );
   const projection = forecast(data.subscriptions, data.company, months).reduce(
     (sum, m) => sum + m.amount,
     0
@@ -371,19 +462,11 @@ export function Overview({ data, user, onOpen, onPay, onAdd, navigate, tv }) {
             </button>
           </div>
           {cards.length ? (
-            <div className={`cards-grid ${tv ? 'tv-cards' : ''}`}>
-              {cards.map((s) => (
-                <SubscriptionCard
-                  key={s.id}
-                  sub={s}
-                  now={stats.now}
-                  onOpen={onOpen}
-                  onPay={onPay}
-                  editable={!tv && canEdit(user, s)}
-                  compact
-                />
-              ))}
-            </div>
+            tv ? (
+              <SubscriptionScroller count={cards.length}>{cardsGrid}</SubscriptionScroller>
+            ) : (
+              cardsGrid
+            )
           ) : (
             <div className="panel">
               <Empty

@@ -217,6 +217,30 @@ html.display-active,
 .tv-mode .tv-cards > .subscription-card:nth-child(n) {
   display: block;
 }
+.tv-mode .subscription-scroll-viewport {
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+  padding-right: 8px;
+}
+.tv-mode .subscription-scroll-viewport:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 4px;
+}
+.tv-mode .subscription-scroll-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+}
+.tv-mode .subscription-scroll-controls .button {
+  min-height: 34px;
+  padding: 7px 12px;
+  font-size: 12px;
+}
 .tv-mode .compact .card-main {
   padding: 12px 15px;
 }
