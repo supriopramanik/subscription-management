@@ -149,7 +149,7 @@ export function forecast(subscriptions, company, monthCount = 6, from = today(co
   for (const s of subscriptions.filter(isLive)) {
     let date = s.nextBillingDate,
       count = 0;
-    while (date.slice(0, 7) <= months.at(-1).key && count++ < 5000) {
+    while (date.slice(0, 7) <= months[months.length - 1].key && count++ < 5000) {
       if (date >= from) {
         const month = months.find((m) => m.key === date.slice(0, 7));
         if (month) month.amount += convert(s.amount, s.currency, company) || 0;
@@ -216,7 +216,7 @@ export function exportCsv(filename, rows) {
   const cell = (value) => {
     let v = String(value ?? '');
     if (/^[=+\-@\t\r]/.test(v)) v = `'${v}`;
-    return `"${v.replaceAll('"', '""')}"`;
+    return `"${v.replace(/"/g, '""')}"`;
   };
   const blob = new Blob(['\uFEFF' + rows.map((row) => row.map(cell).join(',')).join('\r\n')], {
     type: 'text/csv;charset=utf-8;',

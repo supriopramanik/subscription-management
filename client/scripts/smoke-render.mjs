@@ -69,6 +69,9 @@ try {
     console.log(`Rendered ${name}`);
   }
   // The empty real workspace must also render without missing demo-only fields.
+  const tvMarkup = renderToString(React.createElement(pages.Overview, { ...props, tv: true }));
+  assert.equal((tvMarkup.match(/class="subscription-card /g) || []).length, 8);
+  console.log('TV overview renders all eight subscriptions in its rotating page.');
   const empty = { ...data, subscriptions: [], payments: [], paidThisMonth: [], activities: [] };
   for (const name of ['Overview', 'Subscriptions', 'Reports', 'CalendarPage']) {
     const markup = renderToString(React.createElement(pages[name], { ...props, data: empty }));

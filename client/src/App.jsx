@@ -50,6 +50,7 @@ import {
 import { api, idOf, statsFor, ROLE_LABELS, today, advanceDate, rebaseRates } from './lib';
 import { makeDemo, demoUser } from './demo';
 import { ExchangeRateStatus } from './exchange-rates';
+import { readDisplayMode, useDisplayFit, useDisplayPreference } from './use-display';
 
 const navItems = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -86,18 +87,24 @@ export default function App() {
   const [team, setTeam] = useState(initialDemo ? makeDemo().people : []),
     [mobileNav, setMobileNav] = useState(false),
     [profileMenu, setProfileMenu] = useState(false),
-    [tv, setTv] = useState(false);
+    [tv, setTv] = useState(readDisplayMode);
+  const displayRef = useRef(null);
+  useDisplayPreference(tv);
+  const displayStyle = useDisplayFit(
+    tv && !initializing && !!user && !user.mustChangePassword && !!data,
+    displayRef
+  );
   const toastTimer = useRef(null),
     searchRef = useRef(null),
     refreshId = useRef(0),
-    profileRef = useRef(null),
-    wasFullscreen = useRef(false);
+    profileRef = useRef(null);
   const notify = useCallback((message, type = 'success') => {
     clearTimeout(toastTimer.current);
     setToast({ message, type });
     toastTimer.current = setTimeout(() => setToast(null), 6000);
   }, []);
   const navigate = useCallback((name) => {
+    if (name !== 'overview') setTv(false);
     setRoute(name);
     location.hash = name;
     setMobileNav(false);
@@ -191,20 +198,11 @@ export default function App() {
     function click(e) {
       if (profileRef.current && !profileRef.current.contains(e.target)) setProfileMenu(false);
     }
-    function fullscreen() {
-      if (document.fullscreenElement) wasFullscreen.current = true;
-      else if (wasFullscreen.current) {
-        setTv(false);
-        wasFullscreen.current = false;
-      }
-    }
     document.addEventListener('keydown', key);
     document.addEventListener('pointerdown', click);
-    document.addEventListener('fullscreenchange', fullscreen);
     return () => {
       document.removeEventListener('keydown', key);
       document.removeEventListener('pointerdown', click);
-      document.removeEventListener('fullscreenchange', fullscreen);
     };
   }, [modal]);
 
@@ -223,7 +221,6 @@ export default function App() {
     setDemo(false);
     setModal(null);
     setProfileMenu(false);
-    setTv(false);
     setSearch('');
     ++refreshId.current;
     history.replaceState(null, '', location.pathname);
@@ -238,7 +235,9 @@ export default function App() {
     setTeam(sample.people);
     setRoute('overview');
     setUnavailable('');
-    history.replaceState(null, '', '?demo=1#overview');
+    const params = new URLSearchParams(location.search);
+    params.set('demo', '1');
+    history.replaceState(null, '', `?${params}#overview`);
   }
   async function toggleTv() {
     if (tv) {
@@ -247,6 +246,8 @@ export default function App() {
     } else {
       navigate('overview');
       setTv(true);
+      setModal(null);
+      setMobileNav(false);
       try {
         await document.documentElement.requestFullscreen();
       } catch {
@@ -531,7 +532,11 @@ export default function App() {
     );
   const stats = statsFor(data),
     isAdmin = user.role === 'admin',
-    currentRoute = ['team', 'settings'].includes(route) && !isAdmin ? 'overview' : route;
+    currentRoute = tv
+      ? 'overview'
+      : ['team', 'settings'].includes(route) && !isAdmin
+        ? 'overview'
+        : route;
   const sharedProps = {
     data,
     user,
@@ -543,7 +548,7 @@ export default function App() {
   };
   const currentSub = modal?.id ? data.subscriptions.find((s) => s.id === modal.id) : null;
   return (
-    <div className={`app-layout ${tv ? 'tv-mode' : ''}`}>
+    <div ref={displayRef} style={displayStyle} className={`app-layout ${tv ? 'tv-mode' : ''}`}>
       {mobileNav && (
         <button
           className="sidebar-overlay"
@@ -729,12 +734,13 @@ export default function App() {
               {stats.renewals.length > 0 && <i />}
             </button>
             <button
-              className="icon-button fullscreen-button"
+              className="icon-button fullscreen-button display-toggle"
               title={tv ? 'Exit display mode' : 'Display mode'}
               aria-label={tv ? 'Exit display mode' : 'Launch display mode'}
               onClick={toggleTv}
             >
               {tv ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+              <span>{tv ? 'Exit TV' : 'TV display'}</span>
             </button>
             {!tv && user.role !== 'viewer' && (
               <Button icon={Plus} onClick={sharedProps.onAdd}>
@@ -910,7 +916,8 @@ export default function App() {
             </p>
             <p>
               <strong>Display mode</strong> opens a streamlined dashboard for your company screen.
-              Exit using the fullscreen button or Escape.
+              The dashboard fits inside the TV edges and remembers this mode after a reload. Choose
+              Exit TV to return to the standard workspace.
             </p>
             <div className="guide-role">
               <ShieldCheck size={20} />
