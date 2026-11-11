@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
-import { displayChoiceToRemember, fitDisplay, initialDisplayMode } from './display';
+import { DISPLAY_HEIGHT, displayChoiceToRemember, fitDisplay, initialDisplayMode } from './display';
 
 export function readDisplayMode() {
   let saved = null;
@@ -43,9 +43,20 @@ export function useDisplayFit(enabled, ref) {
   useLayoutEffect(() => {
     if (!enabled) return;
     document.documentElement.classList.add('display-active');
+    let measuredHeight = DISPLAY_HEIGHT;
+    let viewportWidth = innerWidth;
+    let viewportHeight = innerHeight;
     const update = () => {
+      if (viewportWidth !== innerWidth || viewportHeight !== innerHeight) {
+        measuredHeight = DISPLAY_HEIGHT;
+        viewportWidth = innerWidth;
+        viewportHeight = innerHeight;
+      }
       const shell = ref.current?.querySelector('.main-shell');
-      setStyle(fitDisplay(innerWidth, innerHeight, shell?.scrollHeight));
+      // Retain the largest measured height until the viewport changes. A wider
+      // canvas can reduce line wrapping; shrinking it again would cause a loop.
+      measuredHeight = Math.max(measuredHeight, shell?.scrollHeight || DISPLAY_HEIGHT);
+      setStyle(fitDisplay(innerWidth, innerHeight, measuredHeight));
     };
     update();
     const shell = ref.current?.querySelector('.main-shell');

@@ -1,6 +1,7 @@
 export const DISPLAY_WIDTH = 1920;
 export const DISPLAY_HEIGHT = 1080;
 export const DISPLAY_MARGIN = 0.04;
+export const DISPLAY_SIDE_MARGIN = 0.01;
 
 export function isTvBrowser(userAgent = '', touchPoints = 0) {
   return (
@@ -32,18 +33,21 @@ export function displayChoiceToRemember(enabled, search = '') {
   return new URLSearchParams(search).get('display') === '0' ? '0' : null;
 }
 
-// Keep desktop proportions on TVs reporting a 960px or 1280px viewport.
-// Reserve room on every edge for the part hidden by TV overscan.
+// Reflow the canvas to the screen's aspect ratio rather than letterboxing a
+// fixed 16:9 canvas. Keep one uniform scale so text and charts retain their shape.
 export function fitDisplay(width, height, contentHeight = DISPLAY_HEIGHT) {
   const canvasHeight = Math.max(DISPLAY_HEIGHT, contentHeight);
-  const scale = Math.min(
-    (width * (1 - DISPLAY_MARGIN * 2)) / DISPLAY_WIDTH,
-    (height * (1 - DISPLAY_MARGIN * 2)) / canvasHeight
+  const availableWidth = width * (1 - DISPLAY_SIDE_MARGIN * 2);
+  const availableHeight = height * (1 - DISPLAY_MARGIN * 2);
+  const canvasWidth = Math.max(
+    DISPLAY_WIDTH,
+    Math.ceil((availableWidth * canvasHeight) / availableHeight)
   );
+  const scale = availableWidth / canvasWidth;
   return {
-    width: DISPLAY_WIDTH,
+    width: canvasWidth,
     height: canvasHeight,
-    left: (width - DISPLAY_WIDTH * scale) / 2,
+    left: (width - canvasWidth * scale) / 2,
     top: (height - canvasHeight * scale) / 2,
     transform: `scale(${scale})`,
   };

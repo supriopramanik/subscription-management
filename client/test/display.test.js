@@ -8,7 +8,7 @@ import {
   DISPLAY_WIDTH,
 } from '../src/display.js';
 
-test('TV canvas stays within safe edges at common TV browser and sharing resolutions', () => {
+test('TV canvas fills the available width while retaining safe top and bottom edges', () => {
   for (const [width, height] of [
     [960, 540],
     [1280, 720],
@@ -20,10 +20,10 @@ test('TV canvas stays within safe edges at common TV browser and sharing resolut
     for (const contentHeight of [1080, 1380]) {
       const fit = fitDisplay(width, height, contentHeight);
       const scale = Number(fit.transform.slice(6, -1));
-      assert.equal(fit.width, DISPLAY_WIDTH);
-      assert.ok(fit.left >= width * 0.04 - 0.001);
+      assert.ok(fit.width >= DISPLAY_WIDTH);
+      assert.ok(Math.abs(fit.left - width * 0.01) < 0.001);
       assert.ok(fit.top >= height * 0.04 - 0.001);
-      assert.ok(fit.left + fit.width * scale <= width * 0.96 + 0.001);
+      assert.ok(Math.abs(fit.left + fit.width * scale - width * 0.99) < 0.001);
       assert.ok(fit.top + fit.height * scale <= height * 0.96 + 0.001);
     }
   }

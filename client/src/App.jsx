@@ -49,7 +49,6 @@ import {
 } from './pages';
 import { api, idOf, statsFor, ROLE_LABELS, today, advanceDate, rebaseRates } from './lib';
 import { makeDemo, demoUser } from './demo';
-import { ExchangeRateStatus } from './exchange-rates';
 import {
   readDisplayMode,
   rememberDisplayChoice,
@@ -769,7 +768,6 @@ export default function App() {
             </button>
           </div>
         )}
-        <ExchangeRateStatus company={data.company} />
         {syncError && (
           <div className="sync-warning" role="alert">
             <AlertCircle size={16} />

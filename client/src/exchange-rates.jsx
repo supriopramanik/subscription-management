@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Globe2, RefreshCw, AlertCircle } from 'lucide-react';
+import { RefreshCw, AlertCircle } from 'lucide-react';
 import { Button, ErrorNote, Field } from './components';
 import { CURRENCIES, rebaseRates } from './lib';
 
@@ -19,40 +19,6 @@ export function RateAttribution() {
     <a href="https://www.exchangerate-api.com" target="_blank" rel="noopener noreferrer">
       Rates by Exchange Rate API
     </a>
-  );
-}
-export function ExchangeRateStatus({ company }) {
-  const fx = company.exchangeRates;
-  if (!fx) return null;
-  const warning = ['cached', 'stale', 'unavailable'].includes(fx.status);
-  return (
-    <div className={`fx-status ${warning ? 'warning' : ''}`} role={warning ? 'status' : undefined}>
-      {warning ? <AlertCircle size={13} /> : <Globe2 size={13} />}
-      <span>
-        <strong>
-          {fx.status === 'demo'
-            ? 'Sample exchange rates'
-            : warning
-              ? fx.status === 'unavailable'
-                ? 'Rates unavailable'
-                : fx.status === 'stale'
-                  ? 'Exchange rates are out of date'
-                  : 'Using saved exchange rates'
-              : 'Automatic exchange rates'}
-        </strong>
-        <span className="fx-status-time">
-          {' '}
-          ·{' '}
-          {fx.status === 'demo'
-            ? 'Illustrative sample data'
-            : fx.asOf
-              ? `Rates as of ${rateTime(fx.asOf, company.timezone)}`
-              : 'Waiting for a successful sync'}
-          {warning ? ' · Retrying automatically' : ''}
-        </span>
-      </span>
-      <RateAttribution />
-    </div>
   );
 }
 export function AutomaticRates({ company, baseCurrency, onRefresh }) {
