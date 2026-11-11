@@ -9,6 +9,9 @@ COPY client client
 RUN npm run build -w client
 
 FROM nginxinc/nginx-unprivileged:1.28-alpine
+USER root
+RUN apk add --no-cache ca-certificates
+USER nginx
 ENV BACKEND_URL=http://server:4000
 COPY --from=build /app/client/dist /usr/share/nginx/html
 COPY client/nginx.conf.template /etc/nginx/templates/default.conf.template
