@@ -49,6 +49,7 @@ import {
 } from './pages';
 import { api, idOf, statsFor, ROLE_LABELS, today, advanceDate, rebaseRates } from './lib';
 import { makeDemo, demoUser } from './demo';
+import { startWorkspaceSync } from './live-workspace';
 import {
   readDisplayMode,
   rememberDisplayChoice,
@@ -161,6 +162,7 @@ export default function App() {
         setSyncError('');
       }
     } catch (e) {
+      if (requestId !== refreshId.current) return;
       if (e.status === 401) {
         setUser(null);
         setData(null);
@@ -174,16 +176,13 @@ export default function App() {
   }, [notify]);
   useEffect(() => {
     if (user && !user.mustChangePassword && !demo) {
-      refresh().catch(() => {});
-      const timer = setInterval(() => {
-        if (!document.hidden) refresh().catch(() => {});
-      }, 60000);
+      const stopSync = startWorkspaceSync(refresh, { live: tv });
       return () => {
-        clearInterval(timer);
+        stopSync();
         ++refreshId.current;
       };
     }
-  }, [idOf(user), user?.mustChangePassword, demo, refresh]);
+  }, [idOf(user), user?.mustChangePassword, demo, tv, refresh]);
   useEffect(() => {
     if (route === 'team' && user?.role === 'admin' && !demo)
       api('/team')
@@ -908,7 +907,8 @@ export default function App() {
           <div className="modal-body guide-body">
             <p>
               <strong>Overview</strong> brings subscriptions, spending and the next 7 days of
-              renewals together. The dashboard refreshes every minute while this tab is visible.
+              renewals together. TV display updates when someone saves a change, reconnects
+              automatically and checks for missed changes every 15 seconds while visible.
             </p>
             <p>
               <strong>Subscriptions</strong> keeps original purchase currencies. Dashboard totals

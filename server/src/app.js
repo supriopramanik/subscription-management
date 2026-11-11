@@ -24,6 +24,7 @@ import {
 } from './domain.js';
 import { uploadFile, downloadUrl, destroyFile, cloudinaryReady } from './cloudinary.js';
 import { exchangeRateService } from './exchange-rates.js';
+import { workspaceUpdates } from './workspace-updates.js';
 
 const cookieName = config.secure ? '__Host-subtrack' : 'subtrack_session';
 const cookieOptions = { httpOnly: true, secure: config.secure, sameSite: 'strict', path: '/' };
@@ -53,6 +54,8 @@ async function transaction(work) {
     await session.withTransaction(async () => {
       result = await work(session);
     });
+    // Notify only after MongoDB confirms the transaction has committed.
+    workspaceUpdates.publish();
     return result;
   } finally {
     await session.endSession();
@@ -238,6 +241,53 @@ export function createApp({ exchangeRates = exchangeRateService } = {}) {
     res.json({ user });
   });
 
+  app.get('/api/workspace/events', (req, res) => {
+    res.set({
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-store',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    res.flushHeaders();
+    res.write('retry: 3000\nevent: ready\ndata: {}\n\n');
+    let closed = false;
+    let checking = false;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      clearInterval(heartbeat);
+      unsubscribe();
+      res.end();
+    };
+    const send = () => {
+      if (closed) return;
+      // No documents, identities or credentials are sent through the event stream.
+      if (!res.write('event: workspace-changed\ndata: {}\n\n')) close();
+    };
+    const unsubscribe = workspaceUpdates.subscribe(send, close);
+    const heartbeat = setInterval(async () => {
+      if (closed || checking) return;
+      checking = true;
+      try {
+        const valid = await Session.exists({
+          _id: req.authSession._id,
+          user: req.user._id,
+          expiresAt: { $gt: new Date() },
+        });
+        if (!valid) {
+          if (!closed) res.write('event: session-expired\ndata: {}\n\n');
+          close();
+        } else if (!closed && !res.write(': heartbeat\n\n')) close();
+      } catch {
+        close();
+      } finally {
+        checking = false;
+      }
+    }, 15000);
+    heartbeat.unref?.();
+    res.on('close', close);
+    res.on('error', close);
+  });
   app.get('/api/workspace', async (_req, res) => {
     const [company, subscriptions, people, payments, activities] = await Promise.all([
       Company.findById('workspace').lean(),

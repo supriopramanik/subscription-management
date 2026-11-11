@@ -8,6 +8,7 @@ import { models, Company, User, Subscription, Payment, Session, Activity } from 
 import { config } from '../src/config.js';
 import { todayInZone } from '../src/domain.js';
 import { rateView } from '../src/exchange-rates.js';
+import { workspaceUpdates } from '../src/workspace-updates.js';
 
 let replica, app, admin, adminUser, member, memberUser, viewer, manager, ownSub, otherSub;
 const origin = config.origin;
@@ -40,6 +41,7 @@ before(
     });
     await mongoose.connect(replica.getUri(), { dbName: 'subtrack_disposable_test' });
     await Promise.all(models.map((m) => m.init()));
+    workspaceUpdates.start(mongoose.connection);
     app = createApp({
       exchangeRates: {
         read: async (baseCurrency) =>
@@ -69,12 +71,14 @@ before(
   { timeout: 240000 }
 );
 after(async () => {
+  await workspaceUpdates.stop();
   await mongoose.disconnect();
   await replica?.stop();
 });
 
 test('workspace requires authentication and rejects cross-origin writes', async () => {
   assert.equal((await request(app).get('/api/workspace')).status, 401);
+  assert.equal((await request(app).get('/api/workspace/events')).status, 401);
   const response = await request(app)
     .post('/api/auth/setup')
     .set('Origin', 'https://untrusted.example')
@@ -330,6 +334,86 @@ test('unknown accounts and wrong passwords return the same generic message', asy
   assert.equal(b.status, 401);
   assert.equal(a.body.error, b.body.error);
 });
+test(
+  'an authenticated TV receives committed create, edit and delete changes from another user',
+  { timeout: 15000 },
+  async (t) => {
+    const signedIn = await write(request(app), 'post', '/api/auth/login', {
+      email: 'viewer@example.invalid',
+      password: 'Own-password-2026',
+    });
+    assert.equal(signedIn.status, 200);
+    const cookie = signedIn.headers['set-cookie'].map((value) => value.split(';')[0]).join('; ');
+    const server = app.listen(0, '127.0.0.1');
+    await new Promise((resolve) => server.once('listening', resolve));
+    const base = `http://127.0.0.1:${server.address().port}`;
+    const controller = new AbortController();
+    t.after(async () => {
+      controller.abort();
+      server.closeAllConnections();
+      await new Promise((resolve) => server.close(resolve));
+    });
+    const response = await fetch(`${base}/api/workspace/events`, {
+      headers: { Cookie: cookie },
+      signal: controller.signal,
+    });
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type'), /^text\/event-stream\b/);
+    assert.equal(response.headers.get('x-accel-buffering'), 'no');
+    const reader = response.body.getReader(),
+      decoder = new TextDecoder();
+    let buffered = '';
+    const nextEvent = async () => {
+      while (!buffered.includes('\n\n')) {
+        const chunk = await reader.read();
+        assert.equal(chunk.done, false, 'Live connection ended unexpectedly');
+        buffered += decoder.decode(chunk.value, { stream: true });
+      }
+      const end = buffered.indexOf('\n\n');
+      const frame = buffered.slice(0, end);
+      buffered = buffered.slice(end + 2);
+      return frame;
+    };
+    assert.ok((await nextEvent()).includes('event: ready'));
+    const changed = async () => {
+      let frame;
+      do {
+        frame = await nextEvent();
+      } while (!frame.includes('event: workspace-changed'));
+      assert.equal(frame, 'event: workspace-changed\ndata: {}');
+      const snapshot = await fetch(`${base}/api/workspace`, { headers: { Cookie: cookie } });
+      assert.equal(snapshot.status, 200);
+      return snapshot.json();
+    };
+    const created = await write(admin, 'post', '/api/subscriptions', {
+      ...subBody(adminUser.id),
+      name: 'Live TV test',
+    });
+    assert.equal(created.status, 201);
+    const id = created.body.subscription.id;
+    assert.equal((await changed()).subscriptions.find((sub) => sub.id === id).name, 'Live TV test');
+    const updated = await write(admin, 'put', `/api/subscriptions/${id}`, {
+      ...subBody(adminUser.id),
+      name: 'Live TV edited',
+      amount: 99,
+    });
+    assert.equal(updated.status, 200);
+    assert.equal((await changed()).subscriptions.find((sub) => sub.id === id).amount, 99);
+    // A write outside the API exercises the shared MongoDB change stream too.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await Subscription.updateOne({ _id: id }, { $set: { name: 'Changed by another instance' } });
+    assert.equal(
+      (await changed()).subscriptions.find((sub) => sub.id === id).name,
+      'Changed by another instance'
+    );
+    assert.equal((await write(admin, 'delete', `/api/subscriptions/${id}`)).status, 200);
+    assert.equal(
+      (await changed()).subscriptions.some((sub) => sub.id === id),
+      false
+    );
+  }
+);
+
 test('admin email changes require the current password and preserve account access', async () => {
   const body = { email: 'new-admin@example.invalid', currentPassword: password };
   assert.equal((await write(request(app), 'post', '/api/auth/email', body)).status, 401);

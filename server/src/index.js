@@ -3,6 +3,7 @@ import { config } from './config.js';
 import { models } from './models.js';
 import { createApp } from './app.js';
 import { exchangeRateService } from './exchange-rates.js';
+import { workspaceUpdates } from './workspace-updates.js';
 
 if (!config.mongoUri) {
   console.error('MONGODB_URI is required. Add it to the root .env or server environment.');
@@ -24,6 +25,7 @@ try {
       'MongoDB must be a replica set (MongoDB Atlas works). Transactions protect payments and setup. See README for local MongoDB.'
     );
   await Promise.all(models.map((model) => model.init()));
+  workspaceUpdates.start(mongoose.connection);
   const stopRateRefresh = exchangeRateService.start();
   const server = createApp().listen(config.port, '0.0.0.0', () =>
     console.log(`Subtrack API ready on http://localhost:${config.port}`)
@@ -35,12 +37,19 @@ try {
     closing = true;
     const forced = setTimeout(() => process.exit(1), 10000);
     forced.unref();
-    server.close(async () => {
-      await stopRateRefresh();
+    try {
+      await Promise.all([
+        new Promise((resolve) => server.close(resolve)),
+        workspaceUpdates.stop(),
+        stopRateRefresh(),
+      ]);
       await mongoose.disconnect();
       clearTimeout(forced);
       process.exit(0);
-    });
+    } catch {
+      console.error('Shutdown could not complete cleanly.');
+      process.exit(1);
+    }
   }
   process.on('SIGTERM', close);
   process.on('SIGINT', close);
