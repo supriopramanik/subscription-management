@@ -1,0 +1,30 @@
+# For local HTTP, NODE_ENV=development and COOKIE_SECURE=false are intentional.
+# For Coolify HTTPS, set NODE_ENV=production, COOKIE_SECURE=true and APP_ORIGIN.
+services:
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file: .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:8080}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      PORT: 4000
+      TRUST_PROXY: 1
+    expose:
+      - '4000'
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://server:4000
+    ports:
+      - '${WEB_PORT:-8080}:8080'
+    depends_on:
+      server:
+        condition: service_healthy

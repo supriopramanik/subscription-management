@@ -1,0 +1,9 @@
+{
+  "name": "@subtrack/client",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": { "dev": "vite --host 0.0.0.0", "build": "vite build", "preview": "vite preview --host 0.0.0.0", "test": "node --test", "smoke": "node scripts/smoke-render.mjs" },
+  "dependencies": { "react": "^19.2.0", "react-dom": "^19.2.0", "lucide-react": "^0.577.0", "recharts": "^3.7.0" },
+  "devDependencies": { "@vitejs/plugin-react": "^5.1.4", "vite": "^7.3.1" }
+}

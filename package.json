@@ -1,0 +1,21 @@
+{
+  "name": "complaiance-subscriptions",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c green,cyan \"npm run dev -w server\" \"npm run dev -w client\"",
+    "build": "npm run build -w client",
+    "start": "npm start -w server",
+    "test": "npm test -w server && npm test -w client",
+    "check": "npm run check -w server && npm run build -w client && npm run smoke -w client && node server/scripts/check-web.js",
+    "format": "prettier --write \"client/src/**/*.{js,jsx,css}\" \"client/scripts/*.mjs\" \"client/test/*.js\" \"server/**/*.js\" \"*.json\" \"*.yaml\" README.md"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "prettier": "^3.9.10"
+  }
+}

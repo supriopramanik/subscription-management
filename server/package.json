@@ -1,0 +1,9 @@
+{
+  "name": "@subtrack/server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": { "dev": "node --watch src/index.js", "start": "node src/index.js", "check": "node --check src/app.js && node --check src/models.js && node --check src/domain.js && node --check src/index.js", "test": "node --test --test-concurrency=1" },
+  "dependencies": { "express": "^5.2.1", "mongoose": "^9.3.0", "bcryptjs": "^3.0.3", "cookie-parser": "^1.4.7", "helmet": "^8.1.0", "express-rate-limit": "^8.3.1", "dotenv": "^17.3.1", "zod": "^4.3.6", "multer": "^2.1.0", "cloudinary": "^2.9.0", "file-type": "^21.3.0" },
+  "devDependencies": { "supertest": "^7.2.2", "mongodb-memory-server": "^11.0.1" }
+}
