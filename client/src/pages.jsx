@@ -64,6 +64,7 @@ import {
   monthlyAmount,
   convert,
   statsFor,
+  groupSubscriptions,
   forecast,
   isLive,
   today,
@@ -181,7 +182,16 @@ export function CategoryChart({ stats, currency }) {
     />
   );
 }
-function Metric({ label, value, note, icon: Icon, children, accent = false }) {
+function Metric({
+  label,
+  value,
+  note,
+  icon: Icon,
+  children,
+  accent = false,
+  originalTotals,
+  currency,
+}) {
   return (
     <section className={`metric-card ${accent ? 'accent' : ''}`}>
       <div className="metric-top">
@@ -189,6 +199,15 @@ function Metric({ label, value, note, icon: Icon, children, accent = false }) {
         <Icon size={18} />
       </div>
       <strong className="metric-value">{value}</strong>
+      {originalTotals &&
+        Object.entries(originalTotals)
+          .filter(([code]) => code !== currency)
+          .map(([code, amount]) => (
+            <div className="metric-original" key={code}>
+              <strong>{money(amount, code)}</strong>
+              <span>Billed in {code}</span>
+            </div>
+          ))}
       <div className="metric-bottom">
         {children}
         <span>{note}</span>
@@ -214,9 +233,10 @@ export function RatesWarning({ stats, data, onSettings }) {
 }
 
 function SubscriptionScroller({ children, count }) {
+  const visibleCount = 12;
   const viewportRef = useRef(null);
-  const [height, setHeight] = useState(380);
-  const [scroll, setScroll] = useState({ up: false, down: count > 8 });
+  const [height, setHeight] = useState(560);
+  const [scroll, setScroll] = useState({ up: false, down: count > visibleCount });
   const updateButtons = (viewport, visibleHeight = viewport.clientHeight) => {
     const next = {
       up: viewport.scrollTop > 1,
@@ -231,10 +251,10 @@ function SubscriptionScroller({ children, count }) {
     const grid = viewport?.firstElementChild;
     if (!grid?.children.length) return;
     const measure = () => {
-      const firstEight = Array.from(grid.children).slice(0, 8);
-      const top = firstEight[0].offsetTop;
+      const visibleCards = Array.from(grid.children).slice(0, visibleCount);
+      const top = visibleCards[0].offsetTop;
       const nextHeight =
-        Math.max(...firstEight.map((card) => card.offsetTop + card.offsetHeight)) - top;
+        Math.max(...visibleCards.map((card) => card.offsetTop + card.offsetHeight)) - top;
       setHeight(nextHeight);
       updateButtons(viewport, nextHeight);
     };
@@ -272,7 +292,7 @@ function SubscriptionScroller({ children, count }) {
       >
         {children}
       </div>
-      {count > 8 && (
+      {count > visibleCount && (
         <div className="subscription-scroll-controls">
           <Button
             variant="secondary"
@@ -300,7 +320,9 @@ export function Overview({ data, user, onOpen, onPay, onAdd, navigate, tv }) {
   const stats = statsFor(data),
     [months, setMonths] = useState(6),
     currency = data.company.baseCurrency;
-  const sorted = [...data.subscriptions].sort(
+  const sorted = groupSubscriptions(
+    tv ? data.subscriptions.filter(isLive) : data.subscriptions
+  ).sort(
     (a, b) =>
       Number(isLive(b)) - Number(isLive(a)) || a.nextBillingDate.localeCompare(b.nextBillingDate)
   );
@@ -316,6 +338,8 @@ export function Overview({ data, user, onOpen, onPay, onAdd, navigate, tv }) {
           onPay={onPay}
           editable={!tv && canEdit(user, s)}
           compact
+          hideAmounts={tv}
+          displayCard={tv}
         />
       ))}
     </div>
@@ -345,28 +369,42 @@ export function Overview({ data, user, onOpen, onPay, onAdd, navigate, tv }) {
           </span>
         </div>
       </div>
-      <RatesWarning
-        stats={stats}
-        data={data}
-        onSettings={() => navigate(user.role === 'admin' ? 'settings' : 'reports')}
-      />
+      {!tv && (
+        <RatesWarning
+          stats={stats}
+          data={data}
+          onSettings={() => navigate(user.role === 'admin' ? 'settings' : 'reports')}
+        />
+      )}
       <div className="metrics-grid">
-        <Metric
-          label="Monthly commitment"
-          value={money(stats.monthly, currency)}
-          note={
-            stats.missing.length
-              ? 'Partial total · rates needed'
-              : 'Normalized across billing cycles'
-          }
-          icon={Wallet}
-          accent
-        >
-          <span className="metric-tag">{currency}</span>
-        </Metric>
+        {tv ? (
+          <Metric
+            label="Overdue renewals"
+            value={stats.overdue.length.toString().padStart(2, '0')}
+            note={stats.overdue.length ? 'Needs attention' : 'No overdue renewals'}
+            icon={Activity}
+            accent
+          />
+        ) : (
+          <Metric
+            label="Monthly commitment"
+            value={money(stats.monthly, currency)}
+            originalTotals={stats.monthlyByCurrency}
+            currency={currency}
+            note={
+              stats.missing.length
+                ? 'Partial total · rates needed'
+                : 'Normalized across billing cycles'
+            }
+            icon={Wallet}
+            accent
+          >
+            <span className="metric-tag">{currency}</span>
+          </Metric>
+        )}
         <Metric
           label="Active subscriptions"
-          value={stats.live.length.toString().padStart(2, '0')}
+          value={stats.liveCount.toString().padStart(2, '0')}
           note={`${new Set(stats.live.map((s) => s.department)).size} departments connected`}
           icon={Layers3}
         >
@@ -388,72 +426,95 @@ export function Overview({ data, user, onOpen, onPay, onAdd, navigate, tv }) {
             <span className="metric-tag">On your radar</span>
           )}
         </Metric>
-        <Metric
-          label="Paid this month"
-          value={money(stats.paid, currency)}
-          note={stats.paidMissing ? 'Partial total · rates needed' : 'Recorded payments only'}
-          icon={CreditCard}
-        >
-          <span className="metric-tag neutral">
-            <Check size={11} /> Tracked
-          </span>
-        </Metric>
-      </div>
-      <div className="analytics-grid">
-        <section className="panel forecast-panel">
-          <div className="panel-header">
-            <div>
-              <h2>
-                What’s ahead<span className="subtle-tag">FORECAST</span>
-              </h2>
-              <p>
-                Upcoming payments in {currency}
-                {stats.missing.length ? ' · partial total' : ''}
-              </p>
-            </div>
-            <Select
-              aria-label="Forecast period"
-              value={months}
-              onChange={(e) => setMonths(Number(e.target.value))}
-            >
-              <option value={3}>Next 3 months</option>
-              <option value={6}>Next 6 months</option>
-              <option value={12}>Next 12 months</option>
-            </Select>
-          </div>
-          <div className="forecast-total">
-            <strong>{money(projection, currency)}</strong>
-            <span>remaining scheduled renewals</span>
-          </div>
-          <ForecastChart data={data} months={months} />
-          <div className="chart-footnote">
-            <span>
-              <i /> Projected payments
+        {tv ? (
+          <Metric
+            label="Renewing in 30 days"
+            value={stats.live
+              .filter((s) => {
+                const days = daysUntil(s.nextBillingDate, stats.now);
+                return days >= 0 && days <= 30;
+              })
+              .length.toString()
+              .padStart(2, '0')}
+            note="Upcoming renewals, excluding overdue"
+            icon={CalendarDays}
+          />
+        ) : (
+          <Metric
+            label="Paid this month"
+            value={money(stats.paid, currency)}
+            originalTotals={stats.paidByCurrency}
+            currency={currency}
+            note={
+              stats.paidMissing
+                ? 'Partial total · rates needed'
+                : 'Recorded payments, net of refunds'
+            }
+            icon={CreditCard}
+          >
+            <span className="metric-tag neutral">
+              <Check size={11} /> Tracked
             </span>
-            <small>From today · assumes current plans and rates</small>
-          </div>
-        </section>
-        <section className="panel category-panel">
-          <div className="panel-header">
-            <div>
-              <h2>Where it goes</h2>
-              <p>Your monthly spend, by category</p>
-            </div>
-            <span className="icon-surface">
-              <Wallet size={16} />
-            </span>
-          </div>
-          <div className="category-chart-content">
-            <CategoryChart stats={stats} currency={currency} />
-          </div>
-        </section>
+          </Metric>
+        )}
       </div>
+      {!tv && (
+        <div className="analytics-grid">
+          <section className="panel forecast-panel">
+            <div className="panel-header">
+              <div>
+                <h2>
+                  What’s ahead<span className="subtle-tag">FORECAST</span>
+                </h2>
+                <p>
+                  Upcoming payments in {currency}
+                  {stats.missing.length ? ' · partial total' : ''}
+                </p>
+              </div>
+              <Select
+                aria-label="Forecast period"
+                value={months}
+                onChange={(e) => setMonths(Number(e.target.value))}
+              >
+                <option value={3}>Next 3 months</option>
+                <option value={6}>Next 6 months</option>
+                <option value={12}>Next 12 months</option>
+              </Select>
+            </div>
+            <div className="forecast-total">
+              <strong>{money(projection, currency)}</strong>
+              <span>remaining scheduled renewals</span>
+            </div>
+            <ForecastChart data={data} months={months} />
+            <div className="chart-footnote">
+              <span>
+                <i /> Projected payments
+              </span>
+              <small>From today · assumes current plans and rates</small>
+            </div>
+          </section>
+          <section className="panel category-panel">
+            <div className="panel-header">
+              <div>
+                <h2>Where it goes</h2>
+                <p>Your monthly spend, by category</p>
+              </div>
+              <span className="icon-surface">
+                <Wallet size={16} />
+              </span>
+            </div>
+            <div className="category-chart-content">
+              <CategoryChart stats={stats} currency={currency} />
+            </div>
+          </section>
+        </div>
+      )}
       <div className="overview-bottom">
         <section className="subscriptions-section">
           <div className="section-heading">
             <div>
               <h2>
-                Your subscriptions <span className="count-badge">{data.subscriptions.length}</span>
+                Your subscriptions <span className="count-badge">{sorted.length}</span>
               </h2>
               <p>The tools that keep your company moving.</p>
             </div>
@@ -499,47 +560,50 @@ export function Overview({ data, user, onOpen, onPay, onAdd, navigate, tv }) {
               now={stats.now}
               onOpen={onOpen}
               limit={tv ? 5 : 4}
+              hideAmounts={tv}
             />
             <button className="panel-footer-button" onClick={() => navigate('calendar')}>
               Open renewal calendar <ArrowRight size={15} />
             </button>
           </section>
-          <section className="budget-panel">
-            <div>
-              <span className="icon-surface">
-                <Target size={18} />
-              </span>
-              <strong>Room to grow.</strong>
-            </div>
-            {budget ? (
-              <>
-                <p>
-                  {budgetPercent <= 100
-                    ? `${Math.max(0, 100 - budgetPercent)}% of your monthly budget is available.`
-                    : `Monthly commitment is ${budgetPercent - 100}% above budget.`}
-                </p>
-                <div className="budget-track">
-                  <i
-                    className={budgetPercent > 100 ? 'over-budget' : ''}
-                    style={{ width: `${Math.min(100, budgetPercent)}%` }}
-                  />
-                </div>
-                <div className="budget-labels">
-                  <span>{money(stats.monthly, currency, true)}</span>
-                  <span>of {money(budget, currency, true)}</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <p>Set a monthly budget to give your spending a clear direction.</p>
-                {user.role === 'admin' && (
-                  <button className="text-button" onClick={() => navigate('settings')}>
-                    Set your budget <ArrowUpRight size={14} />
-                  </button>
-                )}
-              </>
-            )}
-          </section>
+          {!tv && (
+            <section className="budget-panel">
+              <div>
+                <span className="icon-surface">
+                  <Target size={18} />
+                </span>
+                <strong>Room to grow.</strong>
+              </div>
+              {budget ? (
+                <>
+                  <p>
+                    {budgetPercent <= 100
+                      ? `${Math.max(0, 100 - budgetPercent)}% of your monthly budget is available.`
+                      : `Monthly commitment is ${budgetPercent - 100}% above budget.`}
+                  </p>
+                  <div className="budget-track">
+                    <i
+                      className={budgetPercent > 100 ? 'over-budget' : ''}
+                      style={{ width: `${Math.min(100, budgetPercent)}%` }}
+                    />
+                  </div>
+                  <div className="budget-labels">
+                    <span>{money(stats.monthly, currency, true)}</span>
+                    <span>of {money(budget, currency, true)}</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p>Set a monthly budget to give your spending a clear direction.</p>
+                  {user.role === 'admin' && (
+                    <button className="text-button" onClick={() => navigate('settings')}>
+                      Set your budget <ArrowUpRight size={14} />
+                    </button>
+                  )}
+                </>
+              )}
+            </section>
+          )}
         </aside>
       </div>
       <footer className="workspace-footer">
@@ -563,11 +627,18 @@ export function Subscriptions({ data, user, search, onSearch, onOpen, onPay, onA
   const stats = statsFor(data);
   const items = useMemo(
     () =>
-      data.subscriptions
+      groupSubscriptions(data.subscriptions)
         .filter(
           (s) =>
             (!search ||
-              [s.name, s.vendor, s.department, s.owner?.name]
+              [
+                s.name,
+                s.vendor,
+                s.department,
+                s.owner?.name,
+                ...(s.plans || []).map((p) => `${p.name} ${p.vendor}`),
+                ...(s.includedServices || []).map((p) => `${p.name} ${p.plan || ''}`),
+              ]
                 .join(' ')
                 .toLowerCase()
                 .includes(search.toLowerCase())) &&
@@ -601,20 +672,22 @@ export function Subscriptions({ data, user, search, onSearch, onOpen, onPay, onA
         'Seats',
         'Auto renew',
       ],
-      ...items.map((s) => [
-        s.name,
-        s.vendor,
-        s.amount,
-        s.currency,
-        s.cycle,
-        s.nextBillingDate,
-        s.status,
-        s.category,
-        s.department,
-        s.owner?.name,
-        s.seats,
-        s.autoRenew,
-      ]),
+      ...items
+        .flatMap((s) => s.plans || [s])
+        .map((s) => [
+          s.name,
+          s.vendor,
+          s.amount,
+          s.currency,
+          s.cycle,
+          s.nextBillingDate,
+          s.status,
+          s.category,
+          s.department,
+          s.owner?.name,
+          s.seats,
+          s.autoRenew,
+        ]),
     ]);
   }
   return (
@@ -647,8 +720,8 @@ export function Subscriptions({ data, user, search, onSearch, onOpen, onPay, onA
             {label}
             <span>
               {key === 'all'
-                ? data.subscriptions.length
-                : data.subscriptions.filter((s) => s.status === key).length}
+                ? groupSubscriptions(data.subscriptions).length
+                : groupSubscriptions(data.subscriptions).filter((s) => s.status === key).length}
             </span>
           </button>
         ))}
@@ -1021,6 +1094,8 @@ export function Reports({ data, user, navigate, demo }) {
               [
                 'Subscription',
                 'Amount',
+                'Refunded',
+                'Net amount',
                 'Currency',
                 'Due date',
                 'Paid date',
@@ -1031,6 +1106,8 @@ export function Reports({ data, user, navigate, demo }) {
               ...data.payments.map((p) => [
                 p.subscriptionName,
                 p.amount,
+                p.refundedAmount || 0,
+                Math.max(0, p.amount - (p.refundedAmount || 0)),
                 p.currency,
                 p.dueDate,
                 p.paidDate,

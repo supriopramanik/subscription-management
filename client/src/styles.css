@@ -798,6 +798,114 @@ kbd {
 .metric-card.accent .metric-value {
   color: #d6f6b1;
 }
+.metric-original {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 7px;
+  font-size: 14px;
+}
+.metric-original > span {
+  font-size: 10px;
+  color: #a1b58e;
+}
+.card-plan-summary {
+  margin-top: 6px;
+  color: #a4b79f;
+  font-size: 11px;
+}
+.included-services {
+  margin: 20px 0;
+}
+.included-services > p {
+  margin-top: 8px;
+  color: #a4b79f;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.included-services details {
+  margin-top: 12px;
+  border: 1px solid #344537;
+  border-radius: 10px;
+  padding: 12px;
+}
+.included-services summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+.included-services summary span {
+  margin-left: 6px;
+  color: #b7ef70;
+}
+.included-service {
+  display: grid;
+  gap: 5px;
+  padding: 12px 0;
+  border-bottom: 1px solid #344537;
+}
+.included-service:last-child {
+  border-bottom: 0;
+}
+.included-service > span,
+.included-service > small {
+  color: #a4b79f;
+  font-size: 12px;
+}
+.payment-refund {
+  display: block;
+  color: #f2bc75;
+  font-size: 11px;
+  margin-top: 5px;
+}
+.bundle-plans {
+  margin-bottom: 22px;
+}
+.bundle-plan {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid #344537;
+  border-radius: 10px;
+}
+.bundle-plan.selected {
+  border-color: #8db85b;
+  background: #b7ef7008;
+}
+.bundle-plan p,
+.bundle-selected-label {
+  margin-top: 7px;
+  color: #a4b79f;
+  font-size: 12px;
+}
+.bundle-plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.notification-sounds {
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid #344537;
+  border-radius: 12px;
+  background: #1c281f;
+}
+.notification-sounds p {
+  margin-top: 8px;
+  color: #bfd0c3;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.sound-test-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
 .metric-bottom {
   display: flex;
   align-items: center;
@@ -1114,6 +1222,16 @@ kbd {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+.service-icon.has-image {
+  background: #f6f8f5;
+  padding: 3px;
+}
+.custom-logo-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 .status {
   display: inline-flex;

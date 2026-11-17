@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   X,
   ArrowUpRight,
@@ -7,19 +7,39 @@ import {
   Search,
   LoaderCircle,
   Layers3,
-  Figma,
-  Github,
-  Triangle,
-  Cloud,
-  Mail,
-  LayoutGrid,
-  Sparkles,
-  MessageSquare,
-  Hexagon,
-  FileText,
   Globe,
+  Bell,
+  CalendarDays,
+  RefreshCw,
 } from 'lucide-react';
 import { CYCLES, dateLabel, dueLabel, daysUntil, idOf, money, ROLE_LABELS } from './lib';
+import { providerForSubscription } from './provider-icons';
+import { domainForService } from '../../shared/site-icons.mjs';
+import cachedSiteIcons from './site-icon-cache.json';
+
+function ProviderIcon({ sub }) {
+  const provider = providerForSubscription(sub);
+  const [failedIcon, setFailedIcon] = useState('');
+  const label = provider?.name || sub.vendor?.split(' - ')[0] || 'Service provider';
+  return (
+    <span
+      className={`tv-provider-icon ${provider?.name === 'BTCL' ? 'wide' : ''}`}
+      title={`Source: ${label}`}
+    >
+      {provider && failedIcon !== provider.icon ? (
+        <img
+          src={provider.icon}
+          alt={`${label} source logo`}
+          width="32"
+          height="32"
+          onError={() => setFailedIcon(provider.icon)}
+        />
+      ) : (
+        <Globe size={24} role="img" aria-label={`${label} source`} />
+      )}
+    </span>
+  );
+}
 
 export function Mark({ small = false }) {
   return (
@@ -35,34 +55,39 @@ export function Mark({ small = false }) {
     </span>
   );
 }
-const brandIcons = {
-  Figma,
-  GitHub: Github,
-  Vercel: Triangle,
-  Cloudinary: Cloud,
-  Mailchimp: Mail,
-  Notion: FileText,
-  ChatGPT: Hexagon,
-  Slack: MessageSquare,
-  'Google Workspace': LayoutGrid,
-  Adobe: Sparkles,
-  Canva: Globe,
-  '1Password': Layers3,
-};
 export function ServiceIcon({ sub, size = '' }) {
-  const Icon = brandIcons[sub.name];
+  const domain = domainForService(sub);
+  const automatic = /(^|\.)(chatgpt\.com|openai\.com)$/.test(domain)
+    ? '/providers/openai.png'
+    : /(^|\.)hostinger\.com$/.test(domain)
+      ? '/providers/hostinger.ico'
+      : /(^|\.)namecheap\.com$/.test(domain)
+        ? '/providers/namecheap.png'
+        : /(^|\.)tasjeel\.ae$/.test(domain)
+          ? '/providers/tasjeel.png'
+          : /(^|\.)btcl\.(?:com|gov)\.bd$/.test(domain)
+            ? '/providers/btcl-mark.png'
+            : /(^|\.)limda\.net$/.test(domain)
+              ? '/providers/limda.ico'
+              : domain
+                ? cachedSiteIcons[domain] ||
+                  `/api/service-icon?domain=${encodeURIComponent(domain)}`
+                : '';
+  const [failed, setFailed] = useState([]);
+  const source = [sub.logo, automatic].find((src) => src && !failed.includes(src));
   return (
-    <span className={`service-icon ${size}`} style={{ '--service-color': sub.color || '#b7ef70' }}>
-      {sub.logo ? (
+    <span
+      className={`service-icon ${size} ${source ? 'has-image' : ''}`}
+      style={{ '--service-color': sub.color || '#b7ef70' }}
+    >
+      {source ? (
         <img
-          src={sub.logo}
+          key={source}
+          src={source}
           alt=""
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
+          referrerPolicy="no-referrer"
+          onError={() => setFailed((previous) => [...previous, source])}
         />
-      ) : Icon ? (
-        <Icon size={size === 'small' ? 18 : 24} strokeWidth={1.7} />
       ) : (
         <span>{sub.name?.slice(0, 2).toUpperCase()}</span>
       )}
@@ -227,9 +252,81 @@ export function Modal({ title, subtitle, children, onClose, wide = false }) {
     </div>
   );
 }
-export function SubscriptionCard({ sub, now, onOpen, onPay, editable, compact }) {
+export function SubscriptionCard({
+  sub,
+  now,
+  onOpen,
+  onPay,
+  editable,
+  compact,
+  hideAmounts = false,
+  displayCard = false,
+}) {
   const days = daysUntil(sub.nextBillingDate, now),
     live = ['active', 'trial'].includes(sub.status);
+  if (displayCard) {
+    const timing = !live
+      ? sub.status === 'paused'
+        ? 'Renewal is on hold'
+        : 'This service is not renewing'
+      : days < 0
+        ? 'Renewal is overdue by'
+        : days === 0
+          ? 'Renewal is due today'
+          : 'Renews in';
+    return (
+      <article
+        className="subscription-card compact tv-service-card"
+        style={{ '--service-color': sub.color }}
+      >
+        <button className="card-main" onClick={() => onOpen(sub)} aria-label={`View ${sub.name}`}>
+          <div className="tv-service-heading">
+            <div className="tv-service-title">
+              <h3>{sub.name}</h3>
+              <p>{sub.vendor || sub.category}</p>
+            </div>
+            <div className="tv-service-emblem">
+              <ServiceIcon sub={sub} />
+            </div>
+          </div>
+          <ProviderIcon sub={sub} />
+          <div
+            className={`tv-service-timing ${live && days < 0 ? 'late' : live && days <= 7 ? 'soon' : ''}`}
+          >
+            <span>
+              {timing}
+              {live && days !== 0 && (
+                <>
+                  {' '}
+                  <strong>
+                    {Math.abs(days)} {Math.abs(days) === 1 ? 'day' : 'days'}
+                  </strong>
+                </>
+              )}
+            </span>
+            <span className="tv-service-date">
+              <CalendarDays size={14} />
+              Renewal date · {dateLabel(sub.nextBillingDate, { year: 'numeric' })}
+            </span>
+          </div>
+          <div className="tv-service-meta">
+            <span className="tv-service-category">{sub.category}</span>
+            <Status value={sub.status} />
+          </div>
+        </button>
+        <div className="card-footer tv-service-footer">
+          <span>
+            <Bell size={15} />
+            {live ? 'Renewal tracked' : 'Reminders inactive'}
+          </span>
+          <span>
+            <RefreshCw size={14} />
+            Auto-renew {sub.autoRenew && live ? 'on' : 'off'}
+          </span>
+        </div>
+      </article>
+    );
+  }
   return (
     <article
       className={`subscription-card ${compact ? 'compact' : ''}`}
@@ -245,10 +342,28 @@ export function SubscriptionCard({ sub, now, onOpen, onPay, editable, compact })
           <ArrowUpRight size={15} />
         </h3>
         <p>{sub.vendor || sub.category}</p>
-        <div className="card-price">
-          {money(sub.amount, sub.currency)}
-          <small> / {CYCLES[sub.cycle]}</small>
-        </div>
+        {hideAmounts ? (
+          <div className="card-price card-renewal-date">
+            <small>Renewal date</small>
+            {dateLabel(sub.nextBillingDate, { year: 'numeric' })}
+          </div>
+        ) : (
+          <div className="card-price">
+            {money(sub.amount, sub.currency)}
+            <small> / {CYCLES[sub.cycle]}</small>
+          </div>
+        )}
+        {sub.plans && <div className="card-plan-summary">Includes {sub.plans.length} plans</div>}
+        {sub.includedServices?.length > 0 && (
+          <div className="card-plan-summary">
+            Includes{' '}
+            {sub.includedServices.filter((s) => s.kind === 'website').length > 0 &&
+              `${sub.includedServices.filter((s) => s.kind === 'website').length} websites · `}
+            {sub.includedServices.filter((s) => s.kind === 'email').length > 0 &&
+              `${sub.includedServices.filter((s) => s.kind === 'email').length} email plans · `}
+            {sub.includedServices.filter((s) => s.kind === 'addon').length} extras
+          </div>
+        )}
       </button>
       <div className="card-footer">
         <div className={`renewal-label ${live && days <= 3 ? (days < 0 ? 'late' : 'soon') : ''}`}>
@@ -271,7 +386,7 @@ export function SubscriptionCard({ sub, now, onOpen, onPay, editable, compact })
     </article>
   );
 }
-export function RenewalsList({ items, now, onOpen, limit = 5 }) {
+export function RenewalsList({ items, now, onOpen, limit = 5, hideAmounts = false }) {
   return items.length ? (
     <div className="renewal-list">
       {items.slice(0, limit).map((s) => (
@@ -288,7 +403,7 @@ export function RenewalsList({ items, now, onOpen, limit = 5 }) {
             </small>
           </div>
           <span>
-            {money(s.amount, s.currency)}
+            {!hideAmounts && money(s.amount, s.currency)}
             <small>{dateLabel(s.nextBillingDate)}</small>
           </span>
         </button>

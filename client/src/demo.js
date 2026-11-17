@@ -232,7 +232,7 @@ export function makeDemo() {
       payments
         .filter((p) => p.paidDate.slice(0, 7) === today().slice(0, 7))
         .reduce((a, p) => {
-          a[p.currency] = (a[p.currency] || 0) + p.amount;
+          a[p.currency] = (a[p.currency] || 0) + Math.max(0, p.amount - (p.refundedAmount || 0));
           return a;
         }, {})
     ).map(([_id, total]) => ({ _id, total })),

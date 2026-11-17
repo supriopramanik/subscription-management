@@ -1,0 +1,17 @@
+Tool: built-in image_gen; final export resized to 1024 x 500 PNG.
+
+Use case: ads-marketing
+Asset type: beautiful premium Google Play feature banner for CBD employee app. Wide landscape exactly 1024 x 500 pixels.
+Primary request: Completely redesign the previous bland banner into a striking premium modern app feature graphic. The user explicitly disliked the old layout and wants a much more beautiful creative design. Do NOT reuse the pale pink background, the giant emblem at left, or the old arrangement.
+Input image references: the first reference is the old CBD brand banner, visible inside a browser screenshot, and the latest reference is a previous generated pale-pink banner the user rejected. Use only brand identity and app features from these references, not the old layout. The brand is 'CBD', Compliance BD Ltd., an employee workday app with Attendance, Leave, Payslips, Support.
+Art direction: sophisticated midnight navy and deep teal background, luminous emerald/teal atmospheric light on the right, tiny restrained warm red accent referencing Bangladesh. Gorgeous editorial SaaS launch graphic, clean and legible, expertly balanced. Smooth abstract flowing arcs subtly woven into the background. No fake website screenshot, no photographic people.
+Composition: left 55 percent has bold beautiful white typography with generous spacing. Small brand lockup at upper left: compact CBD emblem (gold Bangladesh silhouette over fine globe, green/red wraparound arrows) next to 'CBD' in clean white bold capitals. The emblem is a small supporting element, not the main feature. Below, a commanding large headline on two lines 'Your workday.' then 'Simplified.' with the second line in luminous mint. Beneath, a quiet short feature line 'Attendance • Leave • Payslips • Support'. Small company name 'Compliance BD Ltd.' near lower left.
+Right 45 percent: an elegant three dimensional composition of four floating rounded square glass tiles, thoughtfully arranged as a cohesive cluster at different depths, using crisp simple white and mint line icons: attendance check-in/calendar, leave calendar, payslip document, support chat bubble. Hero attendance tile is largest in the foreground with a green check icon, a smaller leave tile behind and above, payslip tile lower right, small support tile near right edge. Subtle soft reflections, believable refined glass material, soft teal edge lighting, tasteful shadow and depth. No tiny unreadable UI labels, no fabricated employee numbers, no metrics, no phone mockup, no charts. These are conceptual feature icons, not an app screen.
+Text (verbatim, only):
+CBD
+Your workday.
+Simplified.
+Attendance • Leave • Payslips • Support
+Compliance BD Ltd.
+Typography: very clean modern geometric sans-serif, big bold headline, precise spelling and alignment, exceptional visual hierarchy.
+Constraints: output a finished full-bleed banner, exactly 1024x500 landscape aspect ratio 2.048:1. Keep every important element at least 48 pixels inside edges. Exceptional polished graphic-design quality, readable when small, strong color contrast, restrained and premium, no pink background, no giant logo, no old layout, no store badge, no CTA button, no watermark, no extra text.

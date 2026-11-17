@@ -8,6 +8,7 @@ import {
   monthlyAmount,
   statsFor,
   rebaseRates,
+  groupSubscriptions,
 } from '../src/lib.js';
 const company = { baseCurrency: 'BDT', timezone: 'Asia/Dhaka', rates: { BDT: 1, USD: 120 } };
 test('changing reporting currency previews automatic rates without modifying the snapshot', () => {
@@ -31,6 +32,50 @@ const sub = {
   autoRenew: true,
   category: 'Design',
 };
+test('bundled plans share one card and total while retaining independent forecasts and billing dates', () => {
+  const plans = [
+    {
+      ...sub,
+      id: 'domain',
+      bundleId: 'domain',
+      name: 'example.com',
+      vendor: 'Limda Host - Domain',
+      amount: 1857,
+      currency: 'BDT',
+      cycle: 'yearly',
+      nextBillingDate: '2027-07-18',
+    },
+    {
+      ...sub,
+      id: 'hosting',
+      bundleId: 'domain',
+      name: 'Hosting - example.com',
+      vendor: 'Limda Host - Hosting',
+      amount: 1800,
+      currency: 'BDT',
+      cycle: 'yearly',
+      nextBillingDate: '2027-08-25',
+    },
+  ];
+  const grouped = groupSubscriptions([...plans].reverse());
+  assert.equal(grouped.length, 1);
+  assert.equal(grouped[0].id, 'domain');
+  assert.equal(grouped[0].name, 'example.com');
+  assert.equal(grouped[0].amount, 3657);
+  assert.equal(grouped[0].nextBillingDate, '2027-07-18');
+  assert.equal(grouped[0].plans.length, 2);
+  const stats = statsFor({ company, subscriptions: plans, paidThisMonth: [] });
+  assert.equal(stats.liveCount, 1);
+  assert.equal(stats.live.length, 2);
+  assert.equal(stats.monthly, 304.75);
+  assert.deepEqual(
+    forecast(plans, company, 2, '2027-07-01').map((m) => m.amount),
+    [1857, 1800]
+  );
+  assert.equal(plans[1].amount, 1800);
+  assert.equal(groupSubscriptions(plans.map((p) => ({ ...p, bundleId: '' }))).length, 2);
+  assert.equal(groupSubscriptions([plans[0], { ...plans[1], currency: 'USD' }]).length, 2);
+});
 test('currency conversion preserves original data and flags missing rates', () => {
   assert.equal(convert(10, 'USD', company), 1200);
   assert.equal(convert(10, 'EUR', company), null);
@@ -40,6 +85,26 @@ test('monthly commitment normalizes recurrence and excludes one-time costs', () 
   assert.equal(monthlyAmount({ amount: 120, cycle: 'yearly' }), 10);
   assert.equal(monthlyAmount({ amount: 30, cycle: 'quarterly' }), 10);
   assert.equal(monthlyAmount({ amount: 100, cycle: 'once' }), 0);
+});
+test('original currency totals keep USD costs separate from converted totals', () => {
+  const stats = statsFor({
+    company: { ...company, rates: { BDT: 1 } },
+    subscriptions: [
+      sub,
+      { ...sub, id: 'annual', amount: 120, cycle: 'yearly' },
+      { ...sub, id: 'bdt', amount: 500, currency: 'BDT' },
+      { ...sub, id: 'cancelled', amount: 999, status: 'cancelled' },
+      { ...sub, id: 'once', amount: 100, cycle: 'once' },
+    ],
+    paidThisMonth: [
+      { _id: 'USD', total: 30 },
+      { _id: 'BDT', total: 500 },
+    ],
+  });
+  assert.deepEqual(stats.monthlyByCurrency, { USD: 20, BDT: 500 });
+  assert.deepEqual(stats.paidByCurrency, { USD: 30, BDT: 500 });
+  assert.equal(stats.monthly, 500);
+  assert.equal(stats.paid, 500);
 });
 test('forecast keeps month-end anchors and does not invent historical payments', () => {
   const values = forecast([sub], company, 3, '2026-01-01');

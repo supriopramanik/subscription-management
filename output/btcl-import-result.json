@@ -1,0 +1,37 @@
+{
+  "subscriptionsAdded": 7,
+  "paidBillsAdded": 7,
+  "totalPaidBDT": 10304,
+  "existingDataUnchanged": true,
+  "annualAmountsAreLastBillEstimates": true,
+  "domains": [
+    {
+      "name": "gadgethub.bd",
+      "validTill": "2027-04-10"
+    },
+    {
+      "name": "terminus.bd",
+      "validTill": "2027-04-29"
+    },
+    {
+      "name": "cbdl.bd",
+      "validTill": "2027-05-05"
+    },
+    {
+      "name": "cbd.bd",
+      "validTill": "2027-05-05"
+    },
+    {
+      "name": "elitefurnitures.bd",
+      "validTill": "2027-06-06"
+    },
+    {
+      "name": "titanenergy.bd",
+      "validTill": "2027-07-11"
+    },
+    {
+      "name": "fireshop.bd",
+      "validTill": "2027-10-16"
+    }
+  ]
+}

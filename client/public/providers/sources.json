@@ -1,0 +1,44 @@
+[
+  {
+    "name": "hostinger",
+    "path": "client/public/providers/hostinger.ico",
+    "source": "https://www.hostinger.com/favicon.ico",
+    "bytes": 15086,
+    "contentType": "image/vnd.microsoft.icon"
+  },
+  {
+    "name": "namecheap",
+    "path": "client/public/providers/namecheap.png",
+    "source": "https://www.google.com/s2/favicons?domain=namecheap.com&sz=128",
+    "bytes": 1496,
+    "contentType": "image/png"
+  },
+  {
+    "name": "openai",
+    "path": "client/public/providers/openai.png",
+    "source": "https://chatgpt.com/cdn/assets/favicon-48x48.7d42b2e65f.png",
+    "bytes": 3613,
+    "contentType": "image/png"
+  },
+  {
+    "name": "tasjeel",
+    "path": "client/public/providers/tasjeel.png",
+    "source": "https://www.google.com/s2/favicons?domain=tasjeel.ae&sz=128",
+    "bytes": 6450,
+    "contentType": "image/png"
+  },
+  {
+    "name": "btcl",
+    "path": "client/public/providers/btcl-mark.png",
+    "source": "https://commons.wikimedia.org/wiki/File:Bangladesh_Telecommunications_Company_Limited_Emblem.svg",
+    "bytes": 442273,
+    "contentType": "image/png"
+  },
+  {
+    "name": "limda",
+    "path": "client/public/providers/limda.ico",
+    "source": "https://www.limda.net/favicon.ico",
+    "bytes": 2337,
+    "contentType": "image/x-icon"
+  }
+]

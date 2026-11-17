@@ -25,6 +25,7 @@ import {
 import { uploadFile, downloadUrl, destroyFile, cloudinaryReady } from './cloudinary.js';
 import { exchangeRateService } from './exchange-rates.js';
 import { workspaceUpdates } from './workspace-updates.js';
+import { createSiteIcons } from './site-icons.js';
 
 const cookieName = config.secure ? '__Host-subtrack' : 'subtrack_session';
 const cookieOptions = { httpOnly: true, secure: config.secure, sameSite: 'strict', path: '/' };
@@ -98,7 +99,10 @@ async function editable(req) {
   return doc;
 }
 
-export function createApp({ exchangeRates = exchangeRateService } = {}) {
+export function createApp({
+  exchangeRates = exchangeRateService,
+  siteIcons = createSiteIcons(),
+} = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxy);
@@ -212,6 +216,13 @@ export function createApp({ exchangeRates = exchangeRateService } = {}) {
     if (req.user.mustChangePassword) fail(403, 'Change your temporary password before continuing');
     next();
   });
+  app.get('/api/service-icon', async (req, res) => {
+    const icon = await siteIcons(typeof req.query.domain === 'string' ? req.query.domain : '');
+    if (!icon) return res.status(404).end();
+    res
+      .set({ 'Content-Type': icon.type, 'Cache-Control': 'private, max-age=86400' })
+      .send(icon.bytes);
+  });
   app.post('/api/auth/email', authLimit, allow('admin'), async (req, res) => {
     const input = z
       .object({ email: emailSchema, currentPassword: z.string().min(1).max(256) })
@@ -291,7 +302,9 @@ export function createApp({ exchangeRates = exchangeRateService } = {}) {
   app.get('/api/workspace', async (_req, res) => {
     const [company, subscriptions, people, payments, activities] = await Promise.all([
       Company.findById('workspace').lean(),
-      Subscription.find().sort({ createdAt: -1 }).populate('owner', 'name role department active'),
+      Subscription.find({ archived: { $ne: true } })
+        .sort({ createdAt: -1 })
+        .populate('owner', 'name role department active'),
       User.find({ active: true }).select('name role department active').sort({ name: 1 }),
       Payment.find().sort({ paidDate: -1, createdAt: -1 }).limit(100).populate('paidBy', 'name'),
       Activity.find().sort({ createdAt: -1 }).limit(100),
@@ -301,7 +314,17 @@ export function createApp({ exchangeRates = exchangeRateService } = {}) {
     const monthEnd = todayInZone(company.timezone).slice(0, 7) + '-31';
     const paidThisMonth = await Payment.aggregate([
       { $match: { paidDate: { $gte: monthStart, $lte: monthEnd } } },
-      { $group: { _id: '$currency', total: { $sum: '$amount' }, count: { $sum: 1 } } },
+      {
+        $group: {
+          _id: '$currency',
+          total: {
+            $sum: {
+              $max: [0, { $subtract: ['$amount', { $ifNull: ['$refundedAmount', 0] }] }],
+            },
+          },
+          count: { $sum: 1 },
+        },
+      },
     ]);
     res.json({
       company,

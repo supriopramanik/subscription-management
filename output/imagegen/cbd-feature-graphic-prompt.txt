@@ -1,0 +1,14 @@
+Tool: built-in image_gen; final export resized to 1024 x 500 PNG.
+
+Use case: ads-marketing
+Asset type: Google Play feature graphic, final raster PNG exactly 1024 pixels wide by 500 pixels high (2.048:1).
+Primary request: Create an elegant, polished feature graphic for the CBD employee workday app from Compliance BD Ltd., using the existing banner visible inside the attached screenshot as the branding reference.
+Input image 1: reference only. The screenshot is a browser with a Play Console page; use ONLY the embedded CBD banner's identity, emblem, copy and palette. Do not depict the screenshot, browser, Play Console or any webpage.
+Design: clean editorial corporate brand layout on very pale warm pink/off-white. A large carefully reproduced CBD emblem at left: a fine black longitude/latitude globe, a gold silhouette map of Bangladesh centered in it, curved green arrow wrapping the left/top, curved red arrow wrapping right/bottom. Match the reference emblem faithfully. At right of emblem, strong red 'CBD', then large bold dark charcoal headline on two lines 'Your workday,' and 'connected.' Beneath, a legible smaller line 'Attendance • Leave • Payslips • Support', then 'Compliance BD Ltd.' Use immaculate modern sans-serif type, generous whitespace, strong alignment and harmonious spacing. A subtle oversized blush-pink circular arc entering from the far right, reminiscent of the original reference, gives depth and balance. Small restrained green and red accents may echo the emblem. Crisp flat graphic finish, understated and trustworthy.
+Text (verbatim):
+CBD
+Your workday,
+connected.
+Attendance • Leave • Payslips • Support
+Compliance BD Ltd.
+Constraints: exactly 1024 x 500 landscape final output, solid background, keep all key content within a generous 48px safe inset. Main headline easily readable at thumbnail size. No phone mockups, invented UI, gradients, photos, promotional badges, store badges, shadows, watermarks, additional words or unsupported claims. The banner should fill the output edge-to-edge.

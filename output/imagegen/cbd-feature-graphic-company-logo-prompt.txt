@@ -1,0 +1,16 @@
+Tool: built-in image_gen; final export resized to 1024 x 500 PNG.
+
+Use case: ads-marketing
+Asset type: Final Google Play feature graphic, landscape, EXACTLY 1024 x 500 pixels.
+Primary request: Redesign the CBD employee app banner beautifully, incorporating the user's ATTACHED OFFICIAL COMPANY LOGO in full, as a key brand element.
+Input image 1: the official company logo provided in the latest user message. This is the authoritative logo asset. Preserve its complete horizontal lockup faithfully: green and red circular arrows enclosing a black globe and gold Bangladesh map; purple italic serif company name 'Compliance BD Ltd.'; black italic serif tagline 'One Stop Engineering Solution'. Preserve original colors, spelling, shape, proportions, and typographic styling. Do not replace it with 'CBD', do not invent an alternate logo, do not omit the company name or tagline.
+Design direction: a sophisticated modern navy-to-deep-teal employee productivity app banner, mint highlights, elegant polished 3D floating glass feature tiles. Strong attractive professional graphic design.
+Composition: the TOP 25 percent is a clean white full-width brand header displaying the complete official horizontal logo at a comfortable legible scale, centered horizontally, with generous white margins. The official logo sits flat on white; reproduce its original full lockup from the supplied image without clipping. A fine green divider may separate the white brand header from the main navy body.
+Remaining 75 percent below header: dark navy/deep-teal field. Left side has large bold geometric sans-serif headline 'Your workday.' in white, followed by 'Simplified.' in mint on the next line. Beneath it a small but clearly readable line 'Attendance • Leave • Payslips • Support'. Keep left text roomy and well aligned. Right side has a refined cluster of three dimensional translucent teal rounded square tiles with clean white feature icons: a large attendance calendar with green check, a smaller payslip document with taka currency symbol, and a supporting chat bubble tile. The glass tiles look exceptionally elegant, with restrained soft reflections and emerald edge lights. Subtle smooth teal light ribbons in background. Balance branding header and feature section, plenty of breathing room, minimal clutter.
+Only exact text:
+[In official logo] Compliance BD Ltd.
+[In official logo] One Stop Engineering Solution
+[Main headline] Your workday.
+[Main headline] Simplified.
+[Feature line] Attendance • Leave • Payslips • Support
+Constraints: aspect ratio 2.048:1, ideally exact 1024x500 output, edge-to-edge final banner with no external margin. All key elements safely inset. Full official logo must be visible and preserved with its purple wordmark and black tagline on white. No extra 'CBD' mark, no invented statistics, no phone screenshots, no CTA, no badge, no watermark, no tiny UI labels. Accurate complete official brand logo is essential.

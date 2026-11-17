@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { websiteForSave } from '../../shared/site-icons.mjs';
 import {
   Check,
   Upload,
@@ -40,6 +41,7 @@ import {
   today,
   canEdit,
   ROLE_LABELS,
+  groupSubscriptions,
 } from './lib';
 
 export function AuthScreen({ setup, onSuccess, onDemo, unavailable, onRetry }) {
@@ -251,6 +253,7 @@ export function SubscriptionForm({ sub, data, user, onClose, onSave }) {
     name: '',
     vendor: '',
     website: '',
+    logo: '',
     description: '',
     category: data.company.categories[0],
     department: user.department || data.company.departments[0],
@@ -275,7 +278,36 @@ export function SubscriptionForm({ sub, data, user, onClose, onSave }) {
     setBusy(true);
     setError('');
     try {
-      await onSave({ ...form, amount: Number(form.amount), seats: Number(form.seats) }, sub);
+      const payload = Object.fromEntries(
+        [
+          'name',
+          'vendor',
+          'website',
+          'logo',
+          'description',
+          'category',
+          'department',
+          'owner',
+          'amount',
+          'currency',
+          'cycle',
+          'nextBillingDate',
+          'status',
+          'seats',
+          'paymentMethod',
+          'autoRenew',
+          'color',
+        ].map((key) => [key, form[key]])
+      );
+      await onSave(
+        {
+          ...payload,
+          website: websiteForSave(form.website),
+          amount: Number(form.amount),
+          seats: Number(form.seats),
+        },
+        sub
+      );
       onClose();
     } catch (e) {
       setError(e.message);
@@ -422,12 +454,16 @@ export function SubscriptionForm({ sub, data, user, onClose, onSave }) {
               maxLength={120}
             />
           </Field>
-          <Field label="Website">
+          <Field
+            label="Website"
+            hint="A link or domain name, e.g. google.com. The website icon appears automatically."
+          >
             <input
-              type="url"
+              type="text"
+              inputMode="url"
               value={form.website}
               onChange={(e) => set('website', e.target.value)}
-              placeholder="https://example.com"
+              placeholder="google.com or https://example.com"
             />
           </Field>
           <label className="toggle-field">
@@ -452,11 +488,60 @@ export function SubscriptionForm({ sub, data, user, onClose, onSave }) {
             maxLength={2000}
           />
         </Field>
-        {!sub && (
-          <div className="info-note">
-            <Upload size={16} /> You can upload a logo, invoices and documents after saving.
+        <Field
+          label="Custom logo image"
+          hint="Optional. Your image takes priority over the automatic website icon. PNG, JPEG or WebP; up to 5 MB."
+        >
+          <div className="custom-logo-controls">
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              disabled={busy}
+              onChange={async (event) => {
+                const file = event.target.files?.[0];
+                event.target.value = '';
+                if (!file) return;
+                setError('');
+                if (
+                  !['image/png', 'image/jpeg', 'image/webp'].includes(file.type) ||
+                  file.size > 5 * 1024 * 1024
+                ) {
+                  setError('Choose a PNG, JPEG or WebP image up to 5 MB.');
+                  return;
+                }
+                setBusy(true);
+                try {
+                  const bitmap = await createImageBitmap(file);
+                  const canvas = document.createElement('canvas');
+                  const scale = Math.min(1, 192 / Math.max(bitmap.width, bitmap.height));
+                  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+                  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+                  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                  bitmap.close();
+                  let logo = canvas.toDataURL('image/png');
+                  if (logo.length > 100000) logo = canvas.toDataURL('image/webp', 0.85);
+                  if (logo.length > 100000)
+                    throw new Error('This logo is too detailed. Choose a simpler image.');
+                  set('logo', logo);
+                } catch (error) {
+                  setError(error.message || 'Could not read this image.');
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            />
+            {form.logo && (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => set('logo', '')}
+              >
+                Use automatic icon
+              </Button>
+            )}
           </div>
-        )}
+        </Field>
         <div className="modal-actions">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
@@ -556,8 +641,10 @@ export function DetailModal({
   data,
   user,
   demo,
+  hideAmounts = false,
   onClose,
   onEdit,
+  onSelectPlan,
   onPay,
   onDelete,
   onUpload,
@@ -566,8 +653,12 @@ export function DetailModal({
   const [tab, setTab] = useState('overview'),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
-  const editable = canEdit(user, sub),
+  const editable = !hideAmounts && canEdit(user, sub),
     payments = data.payments.filter((p) => idOf(p.subscription) === sub.id);
+  const bundle =
+    groupSubscriptions(data.subscriptions).find(
+      (s) => s.id === sub.id || s.plans?.some((p) => p.id === sub.id)
+    ) || sub;
   async function upload(e, kind) {
     const file = e.target.files[0];
     if (!file) return;
@@ -587,16 +678,18 @@ export function DetailModal({
       <div className="detail-hero">
         <ServiceIcon sub={sub} size="large" />
         <div>
-          <h2>{sub.name}</h2>
-          <p>{sub.vendor || sub.category}</p>
+          <h2>{bundle.name}</h2>
+          <p>{bundle.vendor || bundle.category}</p>
         </div>
-        <div className="detail-price">
-          {money(sub.amount, sub.currency)}
-          <small>per {CYCLES[sub.cycle]}</small>
-        </div>
+        {!hideAmounts && (
+          <div className="detail-price">
+            {money(bundle.amount, bundle.currency)}
+            <small>per {CYCLES[sub.cycle]}</small>
+          </div>
+        )}
       </div>
       <div className="detail-tabs" role="tablist">
-        {['overview', 'files', 'payments'].map((t) => (
+        {(hideAmounts ? ['overview'] : ['overview', 'files', 'payments']).map((t) => (
           <button
             role="tab"
             aria-selected={tab === t}
@@ -611,6 +704,48 @@ export function DetailModal({
       </div>
       <div className="modal-body">
         <ErrorNote error={error} />
+        {bundle.plans && (
+          <section className="bundle-plans" aria-label="Included plans">
+            <h3>Included plans</h3>
+            {bundle.plans.map((plan) => (
+              <div className={`bundle-plan ${plan.id === sub.id ? 'selected' : ''}`} key={plan.id}>
+                <div>
+                  <strong>{plan.vendor}</strong>
+                  <p>
+                    {!hideAmounts && (
+                      <>
+                        {money(plan.amount, plan.currency)} / {CYCLES[plan.cycle]} ·{' '}
+                      </>
+                    )}
+                    Next bill {dateLabel(plan.nextBillingDate, { year: 'numeric' })}
+                  </p>
+                </div>
+                <div className="bundle-plan-actions">
+                  <Button
+                    variant="secondary"
+                    onClick={() => onSelectPlan?.(plan)}
+                    disabled={plan.id === sub.id}
+                  >
+                    View details
+                  </Button>
+                  {!hideAmounts && canEdit(user, plan) && (
+                    <Button variant="secondary" onClick={() => onEdit(plan)}>
+                      Edit plan
+                    </Button>
+                  )}
+                  {!hideAmounts &&
+                    canEdit(user, plan) &&
+                    ['active', 'trial'].includes(plan.status) && (
+                      <Button onClick={() => onPay(plan)}>Mark paid</Button>
+                    )}
+                </div>
+              </div>
+            ))}
+            <p className="bundle-selected-label">
+              Showing details, files and payments for: {sub.vendor}
+            </p>
+          </section>
+        )}
         {tab === 'overview' && (
           <>
             <dl className="detail-grid">
@@ -652,7 +787,55 @@ export function DetailModal({
                 <dd>{sub.autoRenew ? 'Enabled' : 'Disabled'}</dd>
               </div>
             </dl>
-            {sub.description && (
+            {sub.providerStatus && (
+              <div className="info-note">Provider status: {sub.providerStatus}</div>
+            )}
+            {sub.includedServices?.length > 0 && (
+              <section className="included-services" aria-label="Included services">
+                <h3>Included in this plan</h3>
+                <p>
+                  These services share the plan price. They do not add separate recurring charges.
+                </p>
+                {[
+                  ['email', 'Email plans'],
+                  ['website', 'Websites'],
+                  ['addon', 'Extras'],
+                ].map(([kind, label]) => {
+                  const services = sub.includedServices.filter((s) => s.kind === kind);
+                  return (
+                    services.length > 0 && (
+                      <details key={kind}>
+                        <summary>
+                          {label} <span>{services.length}</span>
+                        </summary>
+                        {services.map((service) => (
+                          <div className="included-service" key={`${kind}-${service.name}`}>
+                            <strong>{service.name}</strong>
+                            <span>
+                              {service.plan || 'Included'}
+                              {service.quantity ? ` · ${service.quantity}` : ''}
+                            </span>
+                            {service.status && <small>{service.status}</small>}
+                            {service.expiresOn && (
+                              <small>
+                                Expires {dateLabel(service.expiresOn, { year: 'numeric' })}
+                              </small>
+                            )}
+                            {service.createdOn && (
+                              <small>
+                                Created {dateLabel(service.createdOn, { year: 'numeric' })}
+                              </small>
+                            )}
+                            {!hideAmounts && service.note && <small>{service.note}</small>}
+                          </div>
+                        ))}
+                      </details>
+                    )
+                  );
+                })}
+              </section>
+            )}
+            {!hideAmounts && sub.description && (
               <div className="detail-note">
                 <h4>Team notes</h4>
                 <p>{sub.description}</p>
@@ -766,7 +949,7 @@ export function DetailModal({
           <PaymentHistory data={data} demo={demo} subscriptionId={sub.id} compact />
         )}
         <div className="modal-actions detail-actions">
-          {['admin', 'manager'].includes(user.role) && (
+          {!hideAmounts && ['admin', 'manager'].includes(user.role) && (
             <Button variant="danger-ghost" icon={Trash2} onClick={() => onDelete(sub)}>
               Delete
             </Button>
@@ -789,6 +972,7 @@ export function DetailModal({
 }
 
 export function EmployeeForm({ employee, company, onClose, onSave }) {
+  const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -880,18 +1064,28 @@ export function EmployeeForm({ employee, company, onClose, onSave }) {
           required={!employee}
           hint="Share this privately with the employee. They must change it at first sign-in."
         >
-          <input
-            type="password"
-            autoComplete="new-password"
-            value={form.password}
-            onChange={(e) => set('password', e.target.value)}
-            required={!employee}
-            minLength={10}
-            maxLength={72}
-            placeholder={
-              employee ? 'Leave empty to keep current password' : 'At least 10 characters'
-            }
-          />
+          <div className="password-input">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              value={form.password}
+              onChange={(e) => set('password', e.target.value)}
+              required={!employee}
+              minLength={10}
+              maxLength={72}
+              placeholder={
+                employee ? 'Leave empty to keep current password' : 'At least 10 characters'
+              }
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((shown) => !shown)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-pressed={showPassword}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
         </Field>
         {employee && (
           <label className="checkbox-field">

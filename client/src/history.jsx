@@ -62,6 +62,8 @@ export function PaymentHistory({ data, demo, subscriptionId, compact = false }) 
       [
         'Subscription',
         'Amount',
+        'Refunded',
+        'Net amount',
         'Currency',
         'Due date',
         'Paid date',
@@ -72,6 +74,8 @@ export function PaymentHistory({ data, demo, subscriptionId, compact = false }) 
       ...result.payments.map((p) => [
         p.subscriptionName,
         p.amount,
+        p.refundedAmount || 0,
+        Math.max(0, p.amount - (p.refundedAmount || 0)),
         p.currency,
         p.dueDate,
         p.paidDate,
@@ -145,7 +149,14 @@ export function PaymentHistory({ data, demo, subscriptionId, compact = false }) 
                 {p.note && <small>{p.note}</small>}
                 <small>Due {dateLabel(p.dueDate, { year: 'numeric' })}</small>
               </div>
-              <b>{money(p.amount, p.currency)}</b>
+              <b>
+                {money(p.amount, p.currency)}
+                {p.refundedAmount > 0 && (
+                  <small className="payment-refund">
+                    Refunded {money(p.refundedAmount, p.currency)}
+                  </small>
+                )}
+              </b>
             </div>
           ))}
         </div>
@@ -168,7 +179,14 @@ export function PaymentHistory({ data, demo, subscriptionId, compact = false }) 
                   <td>
                     <strong>{p.subscriptionName}</strong>
                   </td>
-                  <td>{money(p.amount, p.currency)}</td>
+                  <td>
+                    {money(p.amount, p.currency)}
+                    {p.refundedAmount > 0 && (
+                      <small className="payment-refund">
+                        Refunded {money(p.refundedAmount, p.currency)}
+                      </small>
+                    )}
+                  </td>
                   <td>{dateLabel(p.paidDate, { year: 'numeric' })}</td>
                   <td>{dateLabel(p.dueDate, { year: 'numeric' })}</td>
                   <td>{p.paidBy?.name || 'Team member'}</td>

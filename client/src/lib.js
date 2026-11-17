@@ -61,6 +61,37 @@ export function monthlyAmount(s) {
   );
 }
 export const isLive = (s) => ['active', 'trial'].includes(s.status);
+// Group the presentation while keeping each plan's payment and renewal schedule intact.
+export function groupSubscriptions(subscriptions) {
+  const bundles = new Map();
+  for (const sub of subscriptions) {
+    const key = sub.bundleId || sub.id || Symbol();
+    if (!bundles.has(key)) bundles.set(key, []);
+    bundles.get(key).push(sub);
+  }
+  return [...bundles.entries()].flatMap(([key, plans]) => {
+    if (
+      plans.length === 1 ||
+      plans.some((s) => s.currency !== plans[0].currency || s.cycle !== plans[0].cycle)
+    )
+      return plans;
+    const parent = plans.find((s) => s.id === key) || plans[0];
+    const live = plans.filter(isLive);
+    const billed = live.length ? live : plans;
+    return [
+      {
+        ...parent,
+        vendor: `${plans.length} plans · ${parent.vendor.split(' - ')[0]}`,
+        amount: billed.reduce((sum, s) => sum + s.amount, 0),
+        nextBillingDate: billed.map((s) => s.nextBillingDate).sort()[0],
+        status: ['active', 'trial', 'paused', 'cancelled'].find((status) =>
+          plans.some((s) => s.status === status)
+        ),
+        plans,
+      },
+    ];
+  });
+}
 export const canEdit = (user, sub) =>
   ['admin', 'manager'].includes(user.role) ||
   (user.role === 'member' && idOf(sub.owner) === idOf(user));
@@ -91,6 +122,14 @@ export function statsFor(data) {
     (sum, s) => sum + (convert(monthlyAmount(s), s.currency, data.company) || 0),
     0
   );
+  const monthlyByCurrency = live.reduce((totals, s) => {
+    totals[s.currency] = (totals[s.currency] || 0) + monthlyAmount(s);
+    return totals;
+  }, {});
+  const paidByCurrency = data.paidThisMonth.reduce((totals, p) => {
+    totals[p._id] = (totals[p._id] || 0) + p.total;
+    return totals;
+  }, {});
   const renewals = live
     .filter((s) => daysUntil(s.nextBillingDate, now) <= 7)
     .sort((a, b) => a.nextBillingDate.localeCompare(b.nextBillingDate));
@@ -114,9 +153,12 @@ export function statsFor(data) {
   return {
     now,
     live,
+    liveCount: groupSubscriptions(live).length,
     monthly,
+    monthlyByCurrency,
     renewals,
     paid,
+    paidByCurrency,
     missing,
     paidMissing,
     categories,

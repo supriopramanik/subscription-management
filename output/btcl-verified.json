@@ -1,0 +1,78 @@
+{
+  "observedOn": "2026-11-17",
+  "domainSource": "https://bdia.btcl.com.bd/SearchDomain.do",
+  "billSource": "https://bdia.btcl.com.bd/SearchBill.do?moduleID=1",
+  "domainListPages": 1,
+  "billListPages": 1,
+  "providerStatus": "Active - Buy Completed",
+  "billType": "Demand Note",
+  "billStatus": "Paid",
+  "billAmountBDT": 1472,
+  "priceBasis": "Last paid bill for a one-year registration. Future renewal quote not displayed; annual tracker amount uses the last bill as an estimate.",
+  "autoRenewBasis": "Provider auto-renew setting not displayed. Tracker uses manual renewal; no provider setting was changed.",
+  "domains": [
+    [
+      "gadgethub.bd",
+      "2332054",
+      "2026-04-09",
+      "2026-04-11",
+      "2027-04-10",
+      "2405251",
+      "2026-04-16"
+    ],
+    [
+      "terminus.bd",
+      "2340260",
+      "2026-04-30",
+      "2026-04-30",
+      "2027-04-29",
+      "2414143",
+      "2026-05-07"
+    ],
+    [
+      "cbdl.bd",
+      "2341558",
+      "2026-05-06",
+      "2026-05-06",
+      "2027-05-05",
+      "2415757",
+      "2026-05-13"
+    ],
+    [
+      "cbd.bd",
+      "2341560",
+      "2026-05-06",
+      "2026-05-06",
+      "2027-05-05",
+      "2415759",
+      "2026-05-13"
+    ],
+    [
+      "elitefurnitures.bd",
+      "2349152",
+      "2026-06-06",
+      "2026-06-07",
+      "2027-06-06",
+      "2424695",
+      "2026-06-13"
+    ],
+    [
+      "titanenergy.bd",
+      "2364242",
+      "2026-07-12",
+      "2026-07-12",
+      "2027-07-11",
+      "2442127",
+      "2026-07-19"
+    ],
+    [
+      "fireshop.bd",
+      "2401510",
+      "2026-10-17",
+      "2026-10-17",
+      "2027-10-16",
+      "2486631",
+      "2026-10-24"
+    ]
+  ]
+}

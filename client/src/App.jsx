@@ -47,9 +47,19 @@ import {
   ActivityPage,
   Settings,
 } from './pages';
-import { api, idOf, statsFor, ROLE_LABELS, today, advanceDate, rebaseRates } from './lib';
+import {
+  api,
+  idOf,
+  statsFor,
+  groupSubscriptions,
+  ROLE_LABELS,
+  today,
+  advanceDate,
+  rebaseRates,
+} from './lib';
 import { makeDemo, demoUser } from './demo';
 import { startWorkspaceSync } from './live-workspace';
+import { useRenewalAlerts } from './use-renewal-alerts';
 import {
   readDisplayMode,
   rememberDisplayChoice,
@@ -103,11 +113,17 @@ export default function App() {
     searchRef = useRef(null),
     refreshId = useRef(0),
     profileRef = useRef(null);
-  const notify = useCallback((message, type = 'success') => {
+  const notify = useCallback((message, type = 'success', options = {}) => {
     clearTimeout(toastTimer.current);
-    setToast({ message, type });
-    toastTimer.current = setTimeout(() => setToast(null), 6000);
+    setToast({ message, type, onDismiss: options.onDismiss });
+    toastTimer.current = setTimeout(() => setToast(null), options.duration ?? 6000);
   }, []);
+  const renewalSounds = useRenewalAlerts({
+    subscriptions: data?.subscriptions || [],
+    enabled: !demo && !!data && !!user && !user.mustChangePassword,
+    scope: data?.company?.name || 'workspace',
+    notify,
+  });
   const navigate = useCallback((name) => {
     if (name !== 'overview') {
       rememberDisplayChoice(false);
@@ -549,7 +565,15 @@ export default function App() {
     demo,
     navigate,
     onOpen: (sub) => setModal({ type: 'detail', id: sub.id }),
-    onPay: (sub) => setModal({ type: 'payment', sub }),
+    onPay: (sub) =>
+      setModal({
+        type: 'payment',
+        sub: sub.plans
+          ? [...sub.plans]
+              .filter((p) => ['active', 'trial'].includes(p.status))
+              .sort((a, b) => a.nextBillingDate.localeCompare(b.nextBillingDate))[0]
+          : sub,
+      }),
     onAdd: () => setModal({ type: 'subscription' }),
   };
   const currentSub = modal?.id ? data.subscriptions.find((s) => s.id === modal.id) : null;
@@ -590,7 +614,9 @@ export default function App() {
             >
               <Icon size={19} />
               <span>{label}</span>
-              {key === 'subscriptions' && <small>{data.subscriptions.length}</small>}
+              {key === 'subscriptions' && (
+                <small>{groupSubscriptions(data.subscriptions).length}</small>
+              )}
               {key === 'calendar' && stats.overdue.length > 0 && <i className="nav-alert" />}
             </button>
           ))}
@@ -841,8 +867,10 @@ export default function App() {
           data={data}
           user={user}
           demo={demo}
+          hideAmounts={tv}
           onClose={() => setModal(null)}
           onEdit={(sub) => setModal({ type: 'subscription', sub })}
+          onSelectPlan={sharedProps.onOpen}
           onPay={sharedProps.onPay}
           onDelete={(sub) => setModal({ type: 'delete', sub })}
           onUpload={uploadFile}
@@ -878,6 +906,38 @@ export default function App() {
           onClose={() => setModal(null)}
         >
           <div className="modal-body">
+            <section className="notification-sounds" aria-label="Notification sounds">
+              <h3>Daily sound reminders · 11:00 AM</h3>
+              <p>
+                Alerts stop automatically after 10 seconds. Dismiss the notification to stop sooner.
+              </p>
+              <p>
+                Asia/Dhaka · Plays once daily when bills are overdue or due within 7 days, including
+                today. When both apply, the overdue alert plays first, followed by the upcoming
+                reminder.
+              </p>
+              <p>
+                Keep this app open and your device awake. Click Enable sounds after opening the app.
+                Browser or device sleep can delay or prevent the reminder.
+              </p>
+              <p role="status">
+                {renewalSounds.error ||
+                  (renewalSounds.ready
+                    ? 'Sounds enabled for this session.'
+                    : 'Sounds need to be enabled for this session.')}
+              </p>
+              <div className="sound-test-actions">
+                <Button variant="secondary" onClick={renewalSounds.enable}>
+                  Enable sounds
+                </Button>
+                <Button variant="secondary" onClick={() => renewalSounds.test('overdue')}>
+                  Test overdue alert
+                </Button>
+                <Button variant="secondary" onClick={() => renewalSounds.test('upcoming')}>
+                  Test 7-day reminder
+                </Button>
+              </div>
+            </section>
             <RenewalsList
               items={stats.renewals}
               now={stats.now}
@@ -947,7 +1007,16 @@ export default function App() {
           </div>
         </Modal>
       )}
-      {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
+      {toast && (
+        <Toast
+          toast={toast}
+          onClose={() => {
+            clearTimeout(toastTimer.current);
+            toast.onDismiss?.();
+            setToast(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -956,7 +1025,12 @@ function Toast({ toast, onClose }) {
     <div className={`toast ${toast.type}`} role={toast.type === 'error' ? 'alert' : 'status'}>
       {toast.type === 'error' ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
       <span>{toast.message}</span>
-      <button onClick={onClose} aria-label="Dismiss notification">
+      <button
+        onClick={onClose}
+        aria-label={
+          toast.onDismiss ? 'Stop sound and dismiss notification' : 'Dismiss notification'
+        }
+      >
         <X size={16} />
       </button>
     </div>

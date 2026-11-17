@@ -43,6 +43,10 @@ before(
     await Promise.all(models.map((m) => m.init()));
     workspaceUpdates.start(mongoose.connection);
     app = createApp({
+      siteIcons: async (domain) =>
+        domain === 'google.com'
+          ? { bytes: Buffer.from([137, 80, 78, 71]), type: 'image/png' }
+          : null,
       exchangeRates: {
         read: async (baseCurrency) =>
           rateView(
@@ -232,6 +236,44 @@ test('a second billing cycle returns from February to the original month-end anc
   assert.equal(result.body.subscription.nextBillingDate, '2026-03-31');
   assert.equal((await write(admin, 'delete', `/api/subscriptions/${ownSub.id}`)).status, 409);
 });
+test('automatic icon endpoint requires login and custom logos persist through edits', async () => {
+  assert.equal((await request(app).get('/api/service-icon?domain=google.com')).status, 401);
+  const icon = await admin.get('/api/service-icon?domain=google.com');
+  assert.equal(icon.status, 200);
+  assert.match(icon.headers['content-type'], /image\/png/);
+  assert.equal((await admin.get('/api/service-icon?domain=missing.com')).status, 404);
+  const logo =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aR4kAAAAASUVORK5CYII=';
+  const body = { ...subBody(adminUser.id), name: 'Custom logo test', logo };
+  const created = await write(admin, 'post', '/api/subscriptions', body);
+  assert.equal(created.status, 201);
+  const id = created.body.subscription.id;
+  try {
+    assert.equal(created.body.subscription.logo, logo);
+    const updated = await write(admin, 'put', `/api/subscriptions/${id}`, {
+      ...body,
+      logo: undefined,
+      name: 'Updated logo test',
+    });
+    assert.equal(updated.status, 200);
+    assert.equal(updated.body.subscription.logo, logo);
+    assert.equal(
+      (
+        await write(admin, 'put', `/api/subscriptions/${id}`, {
+          ...body,
+          logo: 'data:image/svg+xml;base64,PHN2Zy8+',
+        })
+      ).status,
+      400
+    );
+    const reset = await write(admin, 'put', `/api/subscriptions/${id}`, { ...body, logo: '' });
+    assert.equal(reset.status, 200);
+    assert.equal(reset.body.subscription.logo, '');
+  } finally {
+    await Subscription.deleteOne({ _id: id });
+  }
+});
+
 test('future payment dates, invalid IDs and unsafe fields are rejected', async () => {
   assert.equal(
     (
@@ -301,6 +343,79 @@ test('the payment archive is paginated, searchable and restricted to authenticat
   assert.equal((await viewer.get('/api/payments?page=0')).status, 400);
   assert.equal((await viewer.get('/api/payments?subscription=invalid')).status, 400);
 });
+test('included services remain under one plan, history-only plans stay out of the workspace and refunds reduce paid totals', async () => {
+  const before = (await admin.get('/api/workspace')).body;
+  const beforeUsd = before.paidThisMonth.find((p) => p._id === 'USD')?.total || 0;
+  const parent = await Subscription.create({
+    ...subBody(adminUser.id),
+    createdBy: adminUser.id,
+    name: 'Included service test',
+    includedServices: [
+      {
+        name: 'mail.example.invalid',
+        kind: 'email',
+        plan: 'Free Business Email',
+        quantity: '1/100',
+        expiresOn: '2027-04-11',
+      },
+    ],
+  });
+  const archive = await Subscription.create({
+    ...subBody(adminUser.id),
+    createdBy: adminUser.id,
+    name: 'Historical plan fixture',
+    status: 'cancelled',
+    archived: true,
+  });
+  try {
+    const paidDate = todayInZone(before.company.timezone);
+    await Payment.create([
+      {
+        subscription: parent._id,
+        subscriptionName: parent.name,
+        amount: 10.19,
+        refundedAmount: 10.19,
+        currency: 'USD',
+        dueDate: '2020-01-01',
+        paidDate,
+        paidBy: adminUser.id,
+      },
+      {
+        subscription: parent._id,
+        subscriptionName: parent.name,
+        amount: 20.19,
+        refundedAmount: 5,
+        currency: 'USD',
+        dueDate: '2020-02-01',
+        paidDate,
+        paidBy: adminUser.id,
+      },
+    ]);
+    const result = (await admin.get('/api/workspace')).body;
+    const saved = result.subscriptions.find((s) => s.id === String(parent._id));
+    assert.equal(saved.includedServices.length, 1);
+    assert.equal(saved.includedServices[0].quantity, '1/100');
+    assert.ok(!result.subscriptions.some((s) => s.id === String(archive._id)));
+    const usd = result.paidThisMonth.find((p) => p._id === 'USD').total;
+    assert.ok(Math.abs(usd - beforeUsd - 15.19) < 1e-8);
+    const history = (await admin.get(`/api/payments?subscription=${parent._id}`)).body;
+    assert.equal(history.total, 2);
+    assert.ok(history.payments.some((p) => p.refundedAmount === 10.19));
+    await assert.rejects(
+      new Payment({
+        subscription: parent._id,
+        amount: 10,
+        refundedAmount: 11,
+        paidBy: adminUser.id,
+      }).validate(),
+      /Refund cannot exceed/
+    );
+  } finally {
+    await Payment.deleteMany({ subscription: parent._id });
+    await Subscription.deleteMany({ _id: { $in: [parent._id, archive._id] } });
+  }
+});
+
 test('an administrator cannot remove the last admin or deactivate an active subscription owner', async () => {
   assert.equal(
     (await write(admin, 'patch', `/api/team/${adminUser.id}`, { role: 'viewer' })).status,

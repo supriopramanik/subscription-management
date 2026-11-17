@@ -1,0 +1,52 @@
+{
+  "direct": [
+    {
+      "domain": "toyodigi.jp",
+      "source": "https://toyodigi.jp/TOYO1-02.webp"
+    },
+    {
+      "domain": "libertytools.us",
+      "source": "https://libertytools.us/Libertyli.png"
+    },
+    {
+      "domain": "libertyme.ae",
+      "source": "https://libertyme.ae/logo.png"
+    },
+    {
+      "domain": "gulfmfg.ae",
+      "source": "https://gulfmfg.ae/logo.png"
+    },
+    {
+      "domain": "osakatool.com",
+      "source": "https://osakatool.com/apple-icon?06a0df144382156e"
+    },
+    {
+      "domain": "titanenergy.bd",
+      "source": "https://titanenergy.bd/favicon-96x96.png"
+    },
+    {
+      "domain": "cbdl.bd",
+      "source": "https://compliancebd.com/favicon.ico"
+    }
+  ],
+  "notFound": [
+    "mytoyo.jp",
+    "shaktiagrobd.com",
+    "3sbizworld.com",
+    "ullistedpipe.com",
+    "galaxyfashion.co",
+    "libertyequipmentco.com",
+    "galaxyco.ae",
+    "galaxyhvac.ae",
+    "gulfcool.ae",
+    "globalpro.ae",
+    "galaxyagro.ae",
+    "gulffire.ae",
+    "primegadgets.ae",
+    "makkahmadinapropertys.com",
+    "makkahmadinaproperties.com",
+    "terminus.bd",
+    "elitefurnitures.bd",
+    "cbd.bd"
+  ]
+}

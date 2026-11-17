@@ -26,6 +26,17 @@ export const userInput = z.object({
 export const subscriptionInput = z.object({
   name: text().min(1, 'Subscription name is required'),
   vendor: text().default(''),
+  logo: z
+    .string()
+    .max(100000)
+    .refine(
+      (value) =>
+        !value ||
+        /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value) ||
+        /^https:\/\/res\.cloudinary\.com\//.test(value),
+      'Choose a PNG, JPEG or WebP logo image'
+    )
+    .optional(),
   website: z
     .union([
       z.literal(''),

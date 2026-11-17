@@ -78,6 +78,28 @@ const subscriptionSchema = new Schema(
   {
     name: { type: String, required: true, trim: true },
     vendor: { type: String, default: '' },
+    bundleId: { type: String, default: '' },
+    providerId: { type: String, default: '' },
+    providerStatus: { type: String, default: '' },
+    archived: { type: Boolean, default: false },
+    includedServices: {
+      type: [
+        new Schema(
+          {
+            name: { type: String, required: true },
+            kind: { type: String, enum: ['email', 'website', 'addon'], required: true },
+            plan: String,
+            status: String,
+            expiresOn: String,
+            createdOn: String,
+            quantity: String,
+            note: String,
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
     website: { type: String, default: '' },
     description: { type: String, default: '' },
     category: { type: String, default: 'Other' },
@@ -111,6 +133,18 @@ const paymentSchema = new Schema(
     subscription: ref('Subscription', true),
     subscriptionName: String,
     amount: { type: Number, min: 0, required: true },
+    refundedAmount: {
+      type: Number,
+      min: 0,
+      default: 0,
+      validate: {
+        validator(value) {
+          return value <= this.amount;
+        },
+        message: 'Refund cannot exceed the payment amount',
+      },
+    },
+    providerPaymentId: { type: String, default: '' },
     currency: String,
     dueDate: String,
     paidDate: String,
