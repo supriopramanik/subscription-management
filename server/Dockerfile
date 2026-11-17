@@ -7,6 +7,7 @@ COPY client/package.json client/package.json
 COPY server/package.json server/package.json
 RUN npm ci --omit=dev --workspace=server --include-workspace-root=false && npm cache clean --force
 COPY --chown=node:node server/src server/src
+COPY --chown=node:node shared shared
 USER node
 EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD node -e "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"

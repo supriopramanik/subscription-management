@@ -6,6 +6,7 @@ COPY client/package.json client/package.json
 COPY server/package.json server/package.json
 RUN npm ci --workspace=client --include-workspace-root=false
 COPY client client
+COPY shared shared
 RUN npm run build
 
 FROM node:24-bookworm-slim AS runtime
@@ -16,6 +17,7 @@ COPY client/package.json client/package.json
 COPY server/package.json server/package.json
 RUN npm ci --omit=dev --workspace=server --include-workspace-root=false && npm cache clean --force
 COPY --chown=node:node server/src server/src
+COPY --chown=node:node shared shared
 COPY --from=build --chown=node:node /app/client/dist client/dist
 USER node
 EXPOSE 4000

@@ -6,6 +6,7 @@ COPY client/package.json client/package.json
 COPY server/package.json server/package.json
 RUN npm ci --workspace=client --include-workspace-root=false
 COPY client client
+COPY shared shared
 RUN npm run build -w client
 
 FROM nginxinc/nginx-unprivileged:1.28-alpine
