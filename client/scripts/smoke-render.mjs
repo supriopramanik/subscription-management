@@ -14,9 +14,40 @@ const vite = await createServer({
 try {
   const pages = await vite.ssrLoadModule('/src/pages.jsx');
   const forms = await vite.ssrLoadModule('/src/forms.jsx');
+  const { SubscriptionCard, ServiceIcon } = await vite.ssrLoadModule('/src/components.jsx');
   const { makeDemo, demoUser } = await vite.ssrLoadModule('/src/demo.js');
   const data = makeDemo(),
     noop = () => {};
+  const grok = {
+    ...data.subscriptions[0],
+    name: 'Grok',
+    vendor: 'X Premium',
+    website: 'https://grok.com',
+    logo: '',
+  };
+  const regularGrok = renderToString(
+    React.createElement(SubscriptionCard, {
+      sub: grok,
+      now: '2026-11-23',
+      onOpen: noop,
+      onPay: noop,
+    })
+  );
+  assert.ok(regularGrok.includes('src="/site-icons/grok.com.png"'));
+  assert.ok(!regularGrok.includes('src="/site-icons/x.com.png"'));
+  const tvGrok = renderToString(
+    React.createElement(SubscriptionCard, {
+      sub: grok,
+      now: '2026-11-23',
+      onOpen: noop,
+      onPay: noop,
+      displayCard: true,
+    })
+  );
+  assert.ok(tvGrok.includes('src="/site-icons/grok.com.png"'));
+  assert.ok(tvGrok.includes('src="/site-icons/x.com.png"'));
+  assert.ok(tvGrok.includes('alt="X source logo"'));
+  console.log('Grok keeps its service icon while the TV provider icon shows X.');
   const props = {
     data,
     user: demoUser,
@@ -129,7 +160,6 @@ try {
   );
   assert.ok(standardStatus.includes('TV paused service'));
   assert.ok(standardStatus.includes('TV cancelled service'));
-  const { SubscriptionCard, ServiceIcon } = await vite.ssrLoadModule('/src/components.jsx');
   const renderIcon = (sub) => renderToString(React.createElement(ServiceIcon, { sub }));
   assert.ok(
     renderIcon({ name: 'Google One', website: 'google.com' }).includes(

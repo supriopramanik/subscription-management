@@ -1,5 +1,6 @@
 // Provider identity comes from the billing vendor, not the hosted domain's website.
 const providers = [
+  { match: /^(?:X(?:\.com)?(?=$|[\s-])|Twitter\b)/i, name: 'X', icon: '/site-icons/x.com.png' },
   { match: /^Hostinger\b/i, name: 'Hostinger', icon: '/providers/hostinger.ico' },
   { match: /^Namecheap\b/i, name: 'Namecheap', icon: '/providers/namecheap.png' },
   { match: /^(OpenAI|ChatGPT)\b/i, name: 'OpenAI', icon: '/providers/openai.png' },
