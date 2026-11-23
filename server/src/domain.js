@@ -62,6 +62,7 @@ export const subscriptionInput = z.object({
   currency: z.enum(currencies),
   cycle: z.enum(['weekly', 'monthly', 'quarterly', 'yearly', 'once']),
   nextBillingDate: dateString,
+  billingAnchorDay: z.number().int().min(1).max(31).optional(),
   status: z.enum(['active', 'trial', 'paused', 'cancelled']),
   seats: z.number().int().min(1).max(100000),
   paymentMethod: text().default(''),

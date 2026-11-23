@@ -43,4 +43,6 @@ test('input validation rejects executable URLs and unsupported currency', () => 
   );
   assert.equal(subscriptionInput.safeParse({ ...valid, amount: 1.001 }).success, false);
   assert.equal(subscriptionInput.safeParse({ ...valid, currency: 'FAKE' }).success, false);
+  assert.equal(subscriptionInput.parse({ ...valid, billingAnchorDay: 31 }).billingAnchorDay, 31);
+  assert.equal(subscriptionInput.safeParse({ ...valid, billingAnchorDay: 32 }).success, false);
 });

@@ -54,6 +54,14 @@ node server/scripts/check-upload.js
 
 If MongoDB cannot connect, check the Atlas database user's access, **Atlas → Network Access** for your current machine/server IP, cluster status and DNS. Do not add a broad allow-all network rule just to make local development work. Uploads require valid Cloudinary API credentials and network access.
 
+## Receipt autofill
+
+New subscriptions have a separate **Purchase / start date**. The selected billing cycle calculates the next renewal from that date. A receipt purchase date is used as the start of the billing period; an explicit receipt renewal date or a manually entered next payment date takes priority. Editing an existing subscription preserves its saved renewal date.
+
+In **Add subscription**, choose a receipt, invoice, slip or PDF, or press **Ctrl+V** to paste an image from the clipboard. PNG, JPEG and WebP images up to 10 MB and PDFs up to 10 pages are supported, including scanned PDFs. The server uses bundled English/Bengali OCR data and PDF.js; no AI API key or external OCR service is needed. Review the detected name, plan, total, currency, cycle, renewal date, seats and masked payment label before saving. Uncertain information stays unchanged, with review notes; receipt payment dates are never used as renewal dates. Edits made while extraction is running are preserved.
+
+Extraction requires a signed-in administrator, manager or member. It does not create subscriptions or payment records, or retain the uploaded receipt as an attachment. Attach a document separately after saving if it needs to be kept. The reader processes one receipt at a time with a 90-second timeout. Receipt autofill is unavailable in demo mode.
+
 ## Local MongoDB alternative
 
 Payment recording and first-run provisioning use transactions. MongoDB must run as a replica set or sharded cluster; standalone MongoDB is rejected on startup. Atlas already supports transactions.

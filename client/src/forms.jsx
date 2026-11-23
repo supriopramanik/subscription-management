@@ -30,6 +30,8 @@ import {
   Empty,
 } from './components';
 import { PaymentHistory } from './history';
+import { ReceiptImport } from './receipt-import';
+import { mergeReceiptFields, setSubscriptionField } from './receipt-result';
 import {
   api,
   CURRENCIES,
@@ -39,6 +41,7 @@ import {
   money,
   dateLabel,
   today,
+  advanceDate,
   canEdit,
   ROLE_LABELS,
   groupSubscriptions,
@@ -248,7 +251,7 @@ export function AuthScreen({ setup, onSuccess, onDemo, unavailable, onRetry }) {
   );
 }
 
-export function SubscriptionForm({ sub, data, user, onClose, onSave }) {
+export function SubscriptionForm({ sub, data, user, onClose, onSave, demo = false }) {
   const [form, setForm] = useState(() => ({
     name: '',
     vendor: '',
@@ -261,7 +264,9 @@ export function SubscriptionForm({ sub, data, user, onClose, onSave }) {
     amount: '',
     currency: data.company.baseCurrency,
     cycle: 'monthly',
-    nextBillingDate: today(data.company.timezone),
+    purchaseDate: sub ? '' : today(data.company.timezone),
+    billingDateMode: sub ? 'manual' : 'calculated',
+    nextBillingDate: advanceDate(today(data.company.timezone), 'monthly'),
     status: 'active',
     seats: 1,
     paymentMethod: '',
@@ -272,9 +277,11 @@ export function SubscriptionForm({ sub, data, user, onClose, onSave }) {
   }));
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
-  const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+  const [extracting, setExtracting] = useState(false);
+  const set = (key, value) => setForm((f) => setSubscriptionField(f, key, value));
   async function submit(e) {
     e.preventDefault();
+    if (extracting || busy) return;
     setBusy(true);
     setError('');
     try {
@@ -302,6 +309,9 @@ export function SubscriptionForm({ sub, data, user, onClose, onSave }) {
       await onSave(
         {
           ...payload,
+          ...(!sub && form.billingDateMode === 'calculated' && form.purchaseDate
+            ? { billingAnchorDay: Number(form.purchaseDate.slice(-2)) }
+            : {}),
           website: websiteForSave(form.website),
           amount: Number(form.amount),
           seats: Number(form.seats),
@@ -324,6 +334,18 @@ export function SubscriptionForm({ sub, data, user, onClose, onSave }) {
     >
       <form onSubmit={submit} className="modal-body">
         <ErrorNote error={error} />
+        {!sub && (
+          <ReceiptImport
+            disabled={busy}
+            demo={demo}
+            onBusyChange={setExtracting}
+            onExtract={(fields) => {
+              // Preserve edits made while the document was being read.
+              const snapshot = form;
+              setForm((current) => mergeReceiptFields(current, snapshot, fields));
+            }}
+          />
+        )}
         <div className="form-service-preview">
           <ServiceIcon sub={{ ...form, name: form.name || 'S' }} />
           <div>
@@ -392,7 +414,28 @@ export function SubscriptionForm({ sub, data, user, onClose, onSave }) {
               ))}
             </Select>
           </Field>
-          <Field label="Next payment date" required>
+          {!sub && (
+            <Field
+              label="Purchase / start date"
+              hint="When this billing period started. Used to calculate the next payment; it does not record a payment."
+            >
+              <input
+                type="date"
+                value={form.purchaseDate}
+                onChange={(e) => set('purchaseDate', e.target.value)}
+                required
+              />
+            </Field>
+          )}
+          <Field
+            label="Next payment date"
+            required
+            hint={
+              !sub
+                ? 'The next renewal date, after the current paid period. You can adjust it to match your provider.'
+                : undefined
+            }
+          >
             <input
               type="date"
               value={form.nextBillingDate}
@@ -546,7 +589,7 @@ export function SubscriptionForm({ sub, data, user, onClose, onSave }) {
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" busy={busy} icon={Check}>
+          <Button type="submit" busy={busy} disabled={extracting} icon={Check}>
             {sub ? 'Save changes' : 'Add subscription'}
           </Button>
         </div>

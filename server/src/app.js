@@ -26,6 +26,7 @@ import { uploadFile, downloadUrl, destroyFile, cloudinaryReady } from './cloudin
 import { exchangeRateService } from './exchange-rates.js';
 import { workspaceUpdates } from './workspace-updates.js';
 import { createSiteIcons } from './site-icons.js';
+import { extractReceipt } from './receipt-extraction.js';
 
 const cookieName = config.secure ? '__Host-subtrack' : 'subtrack_session';
 const cookieOptions = { httpOnly: true, secure: config.secure, sameSite: 'strict', path: '/' };
@@ -102,6 +103,7 @@ async function editable(req) {
 export function createApp({
   exchangeRates = exchangeRateService,
   siteIcons = createSiteIcons(),
+  receiptExtractor = extractReceipt,
 } = {}) {
   const app = express();
   app.disable('x-powered-by');
@@ -110,7 +112,7 @@ export function createApp({
     helmet({
       contentSecurityPolicy: {
         directives: {
-          imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com'],
+          imgSrc: ["'self'", 'data:', 'blob:', 'https://res.cloudinary.com'],
           styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
           fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
           upgradeInsecureRequests: config.production ? [] : null,
@@ -366,6 +368,19 @@ export function createApp({
     res.json({ payments, total, page: input.page, limit: input.limit });
   });
 
+  app.post(
+    '/api/subscriptions/extract-receipt',
+    allow('admin', 'manager', 'member'),
+    rateLimit({
+      windowMs: 60000,
+      limit: 8,
+      standardHeaders: 'draft-8',
+      legacyHeaders: false,
+      message: { error: 'Too many receipts. Please wait a minute before trying again.' },
+    }),
+    upload.single('file'),
+    async (req, res) => res.json(await receiptExtractor(req.file))
+  );
   app.post('/api/subscriptions', allow('admin', 'manager', 'member'), async (req, res) => {
     const input = subscriptionInput.parse(req.body);
     input.owner = req.user.role === 'member' ? req.user._id : input.owner || req.user._id;
@@ -376,7 +391,7 @@ export function createApp({
         [
           {
             ...input,
-            billingAnchorDay: Number(input.nextBillingDate.slice(-2)),
+            billingAnchorDay: input.billingAnchorDay || Number(input.nextBillingDate.slice(-2)),
             createdBy: req.user._id,
           },
         ],
@@ -401,7 +416,7 @@ export function createApp({
     if (!(await User.exists({ _id: input.owner, active: true })))
       fail(400, 'Select an active employee as owner');
     if (input.nextBillingDate !== doc.nextBillingDate)
-      doc.billingAnchorDay = Number(input.nextBillingDate.slice(-2));
+      doc.billingAnchorDay = input.billingAnchorDay || Number(input.nextBillingDate.slice(-2));
     Object.assign(doc, input);
     await transaction(async (session) => {
       await doc.save({ session });

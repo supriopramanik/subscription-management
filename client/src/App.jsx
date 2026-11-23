@@ -845,6 +845,7 @@ export default function App() {
       </div>
       {modal?.type === 'subscription' && (
         <SubscriptionForm
+          demo={demo}
           sub={modal.sub}
           data={data}
           user={user}

@@ -9,6 +9,7 @@ import { config } from '../src/config.js';
 import { todayInZone } from '../src/domain.js';
 import { rateView } from '../src/exchange-rates.js';
 import { workspaceUpdates } from '../src/workspace-updates.js';
+import { createCanvas } from '@napi-rs/canvas';
 
 let replica, app, admin, adminUser, member, memberUser, viewer, manager, ownSub, otherSub;
 const origin = config.origin;
@@ -208,6 +209,68 @@ test('viewers cannot create, update, pay, delete or upload', async () => {
   assert.equal((await write(viewer, 'delete', `/api/subscriptions/${ownSub.id}`)).status, 403);
   assert.equal((await write(viewer, 'post', `/api/subscriptions/${ownSub.id}/files`)).status, 403);
 });
+test('receipt autofill requires permission, validates files and returns fields without saving records', async () => {
+  const endpoint = '/api/subscriptions/extract-receipt';
+  assert.equal((await request(app).post(endpoint).set('Origin', origin)).status, 401);
+  assert.equal((await viewer.post(endpoint).set('Origin', origin)).status, 403);
+  assert.equal((await admin.post(endpoint).set('Origin', origin)).status, 400);
+  assert.equal(
+    (
+      await admin
+        .post(endpoint)
+        .set('Origin', origin)
+        .attach('file', Buffer.from('fake PDF'), 'receipt.pdf')
+    ).status,
+    400
+  );
+  assert.equal(
+    (
+      await admin
+        .post(endpoint)
+        .set('Origin', origin)
+        .attach('file', Buffer.alloc(10 * 1024 * 1024 + 1), 'large.png')
+    ).status,
+    400
+  );
+  const before = await Subscription.countDocuments();
+  const paymentsBefore = await Payment.countDocuments();
+  const canvas = createCanvas(900, 360);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 900, 360);
+  ctx.fillStyle = '#000';
+  ctx.font = '36px Arial';
+  ['Figma', 'Total: USD 45.00', 'Billing cycle: monthly', 'Next billing date: 2027-01-31'].forEach(
+    (line, i) => ctx.fillText(line, 25, 65 + i * 75)
+  );
+  const response = await member
+    .post(endpoint)
+    .set('Origin', origin)
+    .attach('file', canvas.toBuffer('image/png'), 'clipboard.png');
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  assert.equal(response.body.fields.name, 'Figma');
+  assert.equal(response.body.fields.amount, 45);
+  assert.equal(response.body.fields.nextBillingDate, '2027-01-31');
+  assert.equal(await Subscription.countDocuments(), before);
+  assert.equal(await Payment.countDocuments(), paymentsBefore);
+});
+
+test('a renewal calculated from a month-end purchase preserves its original billing anchor', async () => {
+  const response = await write(admin, 'post', '/api/subscriptions', {
+    ...subBody(adminUser.id),
+    name: 'Month-end start date test',
+    nextBillingDate: '2026-02-28',
+    billingAnchorDay: 31,
+  });
+  assert.equal(response.status, 201, JSON.stringify(response.body));
+  assert.equal(response.body.subscription.billingAnchorDay, 31);
+  assert.equal(response.body.subscription.nextBillingDate, '2026-02-28');
+  assert.equal(
+    (await write(admin, 'delete', `/api/subscriptions/${response.body.subscription.id}`)).status,
+    200
+  );
+});
+
 test('concurrent payment requests record once and advance the anchored billing date once', async () => {
   const body = {
     paidDate: todayInZone(),
