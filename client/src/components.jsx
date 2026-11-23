@@ -12,7 +12,7 @@ import {
   CalendarDays,
   RefreshCw,
 } from 'lucide-react';
-import { CYCLES, dateLabel, dueLabel, daysUntil, idOf, money, ROLE_LABELS } from './lib';
+import { CYCLES, dateLabel, dueLabel, daysUntil, idOf, money, ROLE_LABELS, initials } from './lib';
 import { providerForSubscription } from './provider-icons';
 import { domainForService } from '../../shared/site-icons.mjs';
 import cachedSiteIcons from './site-icon-cache.json';
@@ -97,11 +97,7 @@ export function ServiceIcon({ sub, size = '' }) {
 export function Avatar({ person, size = '' }) {
   return (
     <span className={`avatar ${size}`} title={person?.name || 'Unassigned'}>
-      {(person?.name || '?')
-        .split(' ')
-        .map((x) => x[0])
-        .slice(0, 2)
-        .join('')}
+      {initials(person?.name)}
     </span>
   );
 }

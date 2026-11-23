@@ -46,6 +46,7 @@ const companySchema = new Schema(
 const userSchema = new Schema(
   {
     name: { type: String, required: true },
+    companyAccount: { type: Boolean, default: false },
     email: { type: String, required: true, unique: true, lowercase: true },
     passwordHash: { type: String, required: true, select: false },
     role: { type: String, enum: ['admin', 'manager', 'member', 'viewer'], default: 'member' },

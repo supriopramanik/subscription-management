@@ -56,6 +56,7 @@ import {
   today,
   advanceDate,
   rebaseRates,
+  initials,
 } from './lib';
 import { makeDemo, demoUser } from './demo';
 import { startWorkspaceSync } from './live-workspace';
@@ -84,6 +85,7 @@ const titleMap = {
 };
 
 export default function App() {
+  const [companyName, setCompanyName] = useState('');
   const initialDemo = new URLSearchParams(location.search).get('demo') === '1';
   const [demo, setDemo] = useState(initialDemo),
     [user, setUser] = useState(initialDemo ? demoUser : null),
@@ -139,6 +141,7 @@ export default function App() {
     setUnavailable('');
     try {
       const state = await api('/auth/status');
+      setCompanyName(state.companyName || '');
       setSetup(state.setupRequired);
       if (!state.setupRequired) {
         try {
@@ -160,6 +163,13 @@ export default function App() {
     if (!initialDemo) initialize();
     return () => clearTimeout(toastTimer.current);
   }, []);
+  useEffect(() => {
+    if (data?.company?.name) setCompanyName(data.company.name);
+  }, [data?.company?.name]);
+  useEffect(() => {
+    const name = data?.company?.name || companyName;
+    document.title = name ? `Subtrack · ${name}` : 'Subtrack';
+  }, [data?.company?.name, companyName]);
   useEffect(() => {
     const handler = () => {
       const next = location.hash.slice(1);
@@ -452,7 +462,8 @@ export default function App() {
         form.name
       );
     else {
-      await api('/company', { method: 'PUT', body: form });
+      const result = await api('/company', { method: 'PUT', body: form });
+      if (result.user) setUser(result.user);
       await afterSave('Workspace settings saved');
     }
   }
@@ -516,6 +527,7 @@ export default function App() {
     return (
       <>
         <AuthScreen
+          companyName={companyName}
           setup={setup}
           unavailable={unavailable}
           onRetry={initialize}
@@ -597,7 +609,7 @@ export default function App() {
           className="workspace-switch"
           onClick={() => (isAdmin ? navigate('settings') : setModal({ type: 'help' }))}
         >
-          <span className="company-avatar">CB</span>
+          <span className="company-avatar">{initials(data.company.name)}</span>
           <span>
             <strong>{data.company.name}</strong>
             <small>Company workspace</small>
@@ -703,9 +715,9 @@ export default function App() {
               onClick={() => setProfileMenu(!profileMenu)}
               aria-expanded={profileMenu}
             >
-              <Avatar person={user} />
+              <Avatar person={user.companyAccount ? { ...user, name: data.company.name } : user} />
               <span>
-                <strong>{user.name}</strong>
+                <strong>{user.companyAccount ? data.company.name : user.name}</strong>
                 <small>{ROLE_LABELS[user.role]}</small>
               </span>
               <ChevronDown size={15} />

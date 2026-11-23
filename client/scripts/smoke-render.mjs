@@ -18,6 +18,16 @@ try {
   const { makeDemo, demoUser } = await vite.ssrLoadModule('/src/demo.js');
   const data = makeDemo(),
     noop = () => {};
+  const companyLogin = renderToString(
+    React.createElement(forms.AuthScreen, {
+      companyName: 'Global Oparation',
+      onSuccess: noop,
+      onDemo: noop,
+      onRetry: noop,
+    })
+  );
+  assert.ok(companyLogin.includes('Global Oparation'));
+  assert.ok(!companyLogin.includes('COMPLAIANCE BD LTD.'));
   const grok = {
     ...data.subscriptions[0],
     name: 'Grok',

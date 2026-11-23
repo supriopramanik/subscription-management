@@ -146,9 +146,10 @@ export function createApp({
       .status(mongoose.connection.readyState === 1 ? 200 : 503)
       .json({ status: mongoose.connection.readyState === 1 ? 'ok' : 'unavailable' })
   );
-  app.get('/api/auth/status', async (_req, res) =>
-    res.json({ setupRequired: !(await Company.exists({ _id: 'workspace' })) })
-  );
+  app.get('/api/auth/status', async (_req, res) => {
+    const company = await Company.findById('workspace').select('name').lean();
+    res.json({ setupRequired: !company, companyName: company?.name || '' });
+  });
   app.post('/api/auth/setup', authLimit, async (req, res) => {
     const input = z
       .object({
@@ -307,7 +308,9 @@ export function createApp({
       Subscription.find({ archived: { $ne: true } })
         .sort({ createdAt: -1 })
         .populate('owner', 'name role department active'),
-      User.find({ active: true }).select('name role department active').sort({ name: 1 }),
+      User.find({ active: true })
+        .select('name role department active companyAccount')
+        .sort({ name: 1 }),
       Payment.find().sort({ paidDate: -1, createdAt: -1 }).limit(100).populate('paidBy', 'name'),
       Activity.find().sort({ createdAt: -1 }).limit(100),
     ]);
@@ -641,11 +644,13 @@ export function createApp({
         { $set: input, $inc: { revision: 1 } },
         { returnDocument: 'after', runValidators: true, session }
       );
+      await User.updateMany({ companyAccount: true }, { $set: { name: doc.name } }, { session });
       await log(req.user, 'updated workspace settings', doc.name, '', session);
       return doc;
     });
     res.json({
       company: { ...company.toObject(), ...(await exchangeRates.read(company.baseCurrency)) },
+      user: await User.findById(req.user._id),
     });
   });
   app.post('/api/company/rates/refresh', allow('admin'), async (_req, res) => {

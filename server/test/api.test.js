@@ -367,6 +367,15 @@ test('future payment dates, invalid IDs and unsafe fields are rejected', async (
   );
 });
 test('settings cannot override server-synced rates; member cannot alter company configuration', async () => {
+  const companyAccount = await User.create({
+    name: 'Test Company',
+    companyAccount: true,
+    email: 'company-account@example.invalid',
+    passwordHash: 'unused-inactive-account',
+    role: 'member',
+    active: false,
+  });
+  const personalName = (await User.findById(adminUser.id)).name;
   const company = (await admin.get('/api/workspace')).body.company;
   const settings = { ...company, rates: { BDT: 1, USD: 122 }, monthlyBudget: 100000 };
   assert.equal((await write(member, 'put', '/api/company', settings)).status, 403);
@@ -376,6 +385,10 @@ test('settings cannot override server-synced rates; member cannot alter company 
   assert.equal(response.body.company.rates.USD, 125);
   assert.equal(response.body.company.exchangeRates.mode, 'automatic');
   assert.equal((await Company.findById('workspace')).rates.has('USD'), false);
+  assert.equal((await User.findById(companyAccount._id)).name, settings.name);
+  assert.equal(response.body.user.name, personalName);
+  assert.equal((await User.findById(memberUser.id)).companyAccount, false);
+  assert.equal((await request(app).get('/api/auth/status')).body.companyName, settings.name);
 });
 test('automatic exchange rates appear in the workspace and manual check is admin-only', async () => {
   const workspace = await viewer.get('/api/workspace');

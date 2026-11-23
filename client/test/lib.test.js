@@ -9,8 +9,15 @@ import {
   statsFor,
   rebaseRates,
   groupSubscriptions,
+  initials,
 } from '../src/lib.js';
 const company = { baseCurrency: 'BDT', timezone: 'Asia/Dhaka', rates: { BDT: 1, USD: 120 } };
+test('company initials follow the configured name and tolerate extra whitespace', () => {
+  assert.equal(initials('Global Oparation'), 'GO');
+  assert.equal(initials('  New   Company Ltd. '), 'NC');
+  assert.equal(initials('Acme'), 'A');
+  assert.equal(initials(''), '?');
+});
 test('changing reporting currency previews automatic rates without modifying the snapshot', () => {
   const original = { BDT: 1, USD: 120, EUR: 132 };
   const rebased = rebaseRates(original, 'USD');

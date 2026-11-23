@@ -14,6 +14,18 @@ export const CYCLES = {
   once: 'one time',
 };
 export const idOf = (value) => (typeof value === 'object' ? value?.id || value?._id : value);
+export function initials(name) {
+  return (
+    String(name || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => [...part][0])
+      .slice(0, 2)
+      .join('')
+      .toLocaleUpperCase() || '?'
+  );
+}
 export function money(amount, currency = 'BDT', compact = false) {
   return new Intl.NumberFormat('en-BD', {
     style: 'currency',

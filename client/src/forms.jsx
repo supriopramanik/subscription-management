@@ -47,9 +47,9 @@ import {
   groupSubscriptions,
 } from './lib';
 
-export function AuthScreen({ setup, onSuccess, onDemo, unavailable, onRetry }) {
+export function AuthScreen({ setup, onSuccess, onDemo, unavailable, onRetry, companyName = '' }) {
   const [form, setForm] = useState({
-    companyName: 'Complaiance BD Ltd.',
+    companyName: '',
     name: '',
     email: '',
     password: '',
@@ -244,7 +244,8 @@ export function AuthScreen({ setup, onSuccess, onDemo, unavailable, onRetry }) {
           </div>
         </div>
         <div className="auth-visual-bottom">
-          COMPLAIANCE BD LTD.<span>SUBSCRIPTION OPERATIONS, SIMPLIFIED.</span>
+          {(setup ? form.companyName : companyName) || 'YOUR COMPANY WORKSPACE'}
+          <span>SUBSCRIPTION OPERATIONS, SIMPLIFIED.</span>
         </div>
       </div>
     </div>
