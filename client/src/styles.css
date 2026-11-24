@@ -3059,6 +3059,11 @@ td > span > small {
   min-height: 43px;
   font-size: 12px;
 }
+.auth-form-wrap .auth-remember input {
+  min-height: 15px;
+  padding: 0;
+  flex: 0 0 15px;
+}
 .auth-form-wrap .field > small {
   color: #729166;
   font-size: 9px;

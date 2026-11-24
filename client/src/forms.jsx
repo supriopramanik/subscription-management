@@ -32,6 +32,7 @@ import {
 import { PaymentHistory } from './history';
 import { ReceiptImport } from './receipt-import';
 import { mergeReceiptFields, setSubscriptionField } from './receipt-result';
+import { readRememberedLogin, saveRememberedLogin } from './remember-login';
 import {
   api,
   CURRENCIES,
@@ -48,10 +49,12 @@ import {
 } from './lib';
 
 export function AuthScreen({ setup, onSuccess, onDemo, unavailable, onRetry, companyName = '' }) {
+  const [remembered] = useState(readRememberedLogin);
+  const [rememberMe, setRememberMe] = useState(remembered.enabled);
   const [form, setForm] = useState({
     companyName: '',
     name: '',
-    email: '',
+    email: setup ? '' : remembered.email,
     password: '',
   });
   const [busy, setBusy] = useState(false),
@@ -67,6 +70,7 @@ export function AuthScreen({ setup, onSuccess, onDemo, unavailable, onRetry, com
         method: 'POST',
         body: form,
       });
+      saveRememberedLogin(form.email, rememberMe);
       onSuccess(user);
     } catch (e) {
       setError(e.message);
@@ -168,6 +172,20 @@ export function AuthScreen({ setup, onSuccess, onDemo, unavailable, onRetry, com
                   </button>
                 </div>
               </Field>
+              {!setup && (
+                <label className="checkbox-field auth-remember">
+                  <input
+                    type="checkbox"
+                    name="rememberMe"
+                    checked={rememberMe}
+                    onChange={(e) => {
+                      setRememberMe(e.target.checked);
+                      saveRememberedLogin(form.email, e.target.checked);
+                    }}
+                  />
+                  Remember me
+                </label>
+              )}
               <Button type="submit" busy={busy} className="full-width" icon={ArrowRight}>
                 {setup ? 'Create workspace' : 'Sign in to workspace'}
               </Button>

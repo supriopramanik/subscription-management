@@ -60,7 +60,8 @@ const sessionSchema = new Schema(
   {
     tokenHash: { type: String, required: true, unique: true },
     user: ref('User', true),
-    expiresAt: { type: Date, required: true, index: { expires: 0 } },
+    // Null dates are ignored by MongoDB's TTL index; dated legacy sessions still expire.
+    expiresAt: { type: Date, default: null, index: { expires: 0 } },
   },
   { timestamps: true, collection: 'subtrack_sessions' }
 );

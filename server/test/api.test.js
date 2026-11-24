@@ -10,6 +10,7 @@ import { todayInZone } from '../src/domain.js';
 import { rateView } from '../src/exchange-rates.js';
 import { workspaceUpdates } from '../src/workspace-updates.js';
 import { createCanvas } from '@napi-rs/canvas';
+import { createHash } from 'node:crypto';
 
 let replica, app, admin, adminUser, member, memberUser, viewer, manager, ownSub, otherSub;
 const origin = config.origin;
@@ -140,6 +141,55 @@ async function employee(role) {
   assert.equal(changed.status, 200, JSON.stringify(changed.body));
   return [agent, response.body.user];
 }
+test('browser sessions persist beyond seven days, renew cookies and are revoked on logout', async () => {
+  const agent = request.agent(app);
+  const signedIn = await write(agent, 'post', '/api/auth/login', {
+    email: adminUser.email,
+    password,
+  });
+  assert.equal(signedIn.status, 200);
+  const cookie = signedIn.headers['set-cookie'][0];
+  assert.match(cookie, /Max-Age=34560000/);
+  assert.match(cookie, /HttpOnly/);
+  assert.match(cookie, /SameSite=Strict/);
+  const tokenHash = createHash('sha256').update(cookie.split(';')[0].split('=')[1]).digest('hex');
+  const session = await Session.findOne({ tokenHash });
+  assert.equal(session.expiresAt, null);
+  await Session.collection.updateOne(
+    { _id: session._id },
+    { $set: { createdAt: new Date(Date.now() - 500 * 86400000) } }
+  );
+  // A fresh browser context can reuse the persistent cookie after reopening.
+  const reopened = await request(app).get('/api/auth/me').set('Cookie', cookie.split(';')[0]);
+  assert.equal(reopened.status, 200);
+  assert.match(reopened.headers['set-cookie'][0], /Max-Age=34560000/);
+  const logout = await write(agent, 'post', '/api/auth/logout');
+  assert.equal(logout.status, 204);
+  assert.match(logout.headers['set-cookie'][0], /Expires=Thu, 01 Jan 1970/);
+  assert.equal(await Session.exists({ tokenHash }), null);
+  assert.equal(
+    (await request(app).get('/api/auth/me').set('Cookie', cookie.split(';')[0])).status,
+    401
+  );
+});
+
+test('valid legacy sessions become persistent while expired sessions remain rejected', async () => {
+  const token = 'a'.repeat(64);
+  const tokenHash = createHash('sha256').update(token).digest('hex');
+  const session = await Session.create({
+    tokenHash,
+    user: adminUser.id,
+    expiresAt: new Date(Date.now() + 86400000),
+  });
+  const cookieName = config.secure ? '__Host-subtrack' : 'subtrack_session';
+  const cookie = `${cookieName}=${token}`;
+  assert.equal((await request(app).get('/api/auth/me').set('Cookie', cookie)).status, 200);
+  assert.equal((await Session.findById(session._id)).expiresAt, null);
+  await Session.updateOne({ _id: session._id }, { expiresAt: new Date(Date.now() - 86400000) });
+  assert.equal((await request(app).get('/api/auth/me').set('Cookie', cookie)).status, 401);
+  await Session.deleteOne({ _id: session._id });
+});
+
 test('employees must replace temporary passwords before accessing company data', async () => {
   [member, memberUser] = await employee('member');
   [viewer] = await employee('viewer');

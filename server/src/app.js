@@ -30,6 +30,11 @@ import { extractReceipt } from './receipt-extraction.js';
 
 const cookieName = config.secure ? '__Host-subtrack' : 'subtrack_session';
 const cookieOptions = { httpOnly: true, secure: config.secure, sameSite: 'strict', path: '/' };
+// Browsers cap persistent cookies at 400 days. Renew on authenticated requests.
+const persistentCookieOptions = { ...cookieOptions, maxAge: 400 * 86400000 };
+const validSessionDates = () => ({
+  $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
+});
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const fail = (status, message) => {
   throw Object.assign(new Error(message), { status });
@@ -70,19 +75,24 @@ async function log(user, action, target, detail = '', session) {
 }
 async function createSession(res, user) {
   const token = randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 7 * 86400000);
-  await Session.create({ tokenHash: hash(token), user: user._id, expiresAt });
-  res.cookie(cookieName, token, { ...cookieOptions, expires: expiresAt });
+  await Session.create({ tokenHash: hash(token), user: user._id });
+  res.cookie(cookieName, token, persistentCookieOptions);
 }
-async function authenticate(req, _res, next) {
+async function authenticate(req, res, next) {
   const token = req.cookies[cookieName];
   if (!token || typeof token !== 'string' || token.length !== 64)
     fail(401, 'Please sign in to continue');
   const session = await Session.findOne({
     tokenHash: hash(token),
-    expiresAt: { $gt: new Date() },
+    ...validSessionDates(),
   }).populate('user');
   if (!session?.user?.active) fail(401, 'Your session has expired. Please sign in again.');
+  // Upgrade a still-valid seven-day session without requiring another sign-in.
+  if (session.expiresAt) {
+    session.expiresAt = null;
+    await session.save();
+  }
+  res.cookie(cookieName, token, persistentCookieOptions);
   req.user = session.user;
   req.authSession = session;
   next();
@@ -286,7 +296,7 @@ export function createApp({
         const valid = await Session.exists({
           _id: req.authSession._id,
           user: req.user._id,
-          expiresAt: { $gt: new Date() },
+          ...validSessionDates(),
         });
         if (!valid) {
           if (!closed) res.write('event: session-expired\ndata: {}\n\n');
