@@ -33,6 +33,7 @@ import { PaymentHistory } from './history';
 import { ReceiptImport } from './receipt-import';
 import { mergeReceiptFields, setSubscriptionField } from './receipt-result';
 import { readRememberedLogin, saveRememberedLogin } from './remember-login';
+import { CompanyDetails, CompanyDetailsFields, emptyCompanyDetails } from './company-details';
 import {
   api,
   CURRENCIES,
@@ -281,6 +282,7 @@ export function SubscriptionForm({ sub, data, user, onClose, onSave, demo = fals
     department: user.department || data.company.departments[0],
     owner: idOf(user),
     amount: '',
+    companyDetails: null,
     currency: data.company.baseCurrency,
     cycle: 'monthly',
     purchaseDate: sub ? '' : today(data.company.timezone),
@@ -315,6 +317,7 @@ export function SubscriptionForm({ sub, data, user, onClose, onSave, demo = fals
           'department',
           'owner',
           'amount',
+          'companyDetails',
           'currency',
           'cycle',
           'nextBillingDate',
@@ -332,7 +335,7 @@ export function SubscriptionForm({ sub, data, user, onClose, onSave, demo = fals
             ? { billingAnchorDay: Number(form.purchaseDate.slice(-2)) }
             : {}),
           website: websiteForSave(form.website),
-          amount: Number(form.amount),
+          amount: form.amount === null ? null : Number(form.amount),
           seats: Number(form.seats),
         },
         sub
@@ -405,13 +408,14 @@ export function SubscriptionForm({ sub, data, user, onClose, onSave, demo = fals
               maxLength={120}
             />
           </Field>
-          <Field label="Amount per billing cycle" required>
+          <Field label="Amount per billing cycle" required={form.amount !== null}>
             <input
               type="number"
-              value={form.amount}
+              value={form.amount ?? ''}
+              disabled={form.amount === null}
               onChange={(e) => set('amount', e.target.value)}
               placeholder="0.00"
-              required
+              required={form.amount !== null}
               min="0"
               max="10000000000"
               step="0.01"
@@ -541,6 +545,28 @@ export function SubscriptionForm({ sub, data, user, onClose, onSave, demo = fals
             <span className="switch" />
           </label>
         </div>
+        <label className="checkbox-field">
+          <input
+            type="checkbox"
+            checked={form.amount === null}
+            onChange={(e) => set('amount', e.target.checked ? null : '')}
+          />
+          Amount not provided — track the renewal date until the charge is confirmed
+        </label>
+        <label className="checkbox-field">
+          <input
+            type="checkbox"
+            checked={!!form.companyDetails}
+            onChange={(e) => set('companyDetails', e.target.checked ? emptyCompanyDetails() : null)}
+          />
+          Company formation / renewal subscription
+        </label>
+        {form.companyDetails && (
+          <CompanyDetailsFields
+            value={form.companyDetails}
+            onChange={(value) => set('companyDetails', value)}
+          />
+        )}
         <Field label="Notes">
           <textarea
             value={form.description}
@@ -655,6 +681,11 @@ export function PaymentForm({ sub, company, onClose, onSave }) {
           <b>{money(sub.amount, sub.currency)}</b>
         </div>
         <ErrorNote error={error} />
+        {sub.amount === null && (
+          <div className="info-note">
+            Set the renewal amount and currency in Edit details before recording a payment.
+          </div>
+        )}
         <Field label="Payment date" required>
           <input
             type="date"
@@ -689,7 +720,7 @@ export function PaymentForm({ sub, company, onClose, onSave }) {
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" busy={busy} icon={Check}>
+          <Button type="submit" busy={busy} disabled={sub.amount === null} icon={Check}>
             Confirm payment
           </Button>
         </div>
@@ -736,7 +767,11 @@ export function DetailModal({
     }
   }
   return (
-    <Modal title="Subscription details" onClose={onClose} wide>
+    <Modal
+      title={sub.companyDetails ? 'Company renewal subscription' : 'Subscription details'}
+      onClose={onClose}
+      wide
+    >
       <div className="detail-hero">
         <ServiceIcon sub={sub} size="large" />
         <div>
@@ -810,6 +845,11 @@ export function DetailModal({
         )}
         {tab === 'overview' && (
           <>
+            <CompanyDetails
+              sub={sub}
+              timezone={data.company.timezone}
+              onRenew={editable ? onEdit : undefined}
+            />
             <dl className="detail-grid">
               <div>
                 <dt>Status</dt>
@@ -1022,7 +1062,7 @@ export function DetailModal({
               Edit details
             </Button>
           )}
-          {editable && ['active', 'trial'].includes(sub.status) && (
+          {editable && sub.amount !== null && ['active', 'trial'].includes(sub.status) && (
             <Button icon={Check} onClick={() => onPay(sub)}>
               Mark paid
             </Button>

@@ -345,6 +345,10 @@ export default function App() {
     }
   }
   async function recordPayment(sub, form) {
+    if (sub.amount === null)
+      throw new Error(
+        'Set the renewal amount and currency in Edit details before recording a payment'
+      );
     if (demo)
       demoUpdate(
         (d) => {

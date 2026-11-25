@@ -370,7 +370,7 @@ export function SubscriptionCard({
               ? 'On hold'
               : 'Not renewing'}
         </div>
-        {editable && live && days <= 7 ? (
+        {editable && sub.amount !== null && live && days <= 7 ? (
           <button className="text-button pay-link" onClick={() => onPay(sub)}>
             <Check size={13} />
             Mark paid

@@ -27,6 +27,7 @@ export function initials(name) {
   );
 }
 export function money(amount, currency = 'BDT', compact = false) {
+  if (amount === null) return 'Amount not provided';
   return new Intl.NumberFormat('en-BD', {
     style: 'currency',
     currency,
@@ -67,6 +68,7 @@ export function dueLabel(date, now) {
         : `In ${d} days`;
 }
 export function monthlyAmount(s) {
+  if (s.amount === null) return null;
   return (
     s.amount *
     ({ weekly: 52 / 12, monthly: 1, quarterly: 1 / 3, yearly: 1 / 12, once: 0 }[s.cycle] ?? 0)
@@ -94,7 +96,9 @@ export function groupSubscriptions(subscriptions) {
       {
         ...parent,
         vendor: `${plans.length} plans · ${parent.vendor.split(' - ')[0]}`,
-        amount: billed.reduce((sum, s) => sum + s.amount, 0),
+        amount: billed.some((s) => s.amount === null)
+          ? null
+          : billed.reduce((sum, s) => sum + s.amount, 0),
         nextBillingDate: billed.map((s) => s.nextBillingDate).sort()[0],
         status: ['active', 'trial', 'paused', 'cancelled'].find((status) =>
           plans.some((s) => s.status === status)
@@ -108,6 +112,7 @@ export const canEdit = (user, sub) =>
   ['admin', 'manager'].includes(user.role) ||
   (user.role === 'member' && idOf(sub.owner) === idOf(user));
 export function convert(amount, currency, company) {
+  if (amount === null) return null;
   const rate = currency === company.baseCurrency ? 1 : company.rates[currency];
   return rate ? amount * rate : null;
 }
@@ -126,7 +131,7 @@ export function statsFor(data) {
   const missing = [
     ...new Set(
       live
-        .filter((s) => convert(s.amount, s.currency, data.company) === null)
+        .filter((s) => s.amount !== null && convert(s.amount, s.currency, data.company) === null)
         .map((s) => s.currency)
     ),
   ];
@@ -135,6 +140,7 @@ export function statsFor(data) {
     0
   );
   const monthlyByCurrency = live.reduce((totals, s) => {
+    if (s.amount === null) return totals;
     totals[s.currency] = (totals[s.currency] || 0) + monthlyAmount(s);
     return totals;
   }, {});
@@ -172,6 +178,7 @@ export function statsFor(data) {
     paid,
     paidByCurrency,
     missing,
+    unknownAmounts: live.filter((s) => s.amount === null).length,
     paidMissing,
     categories,
     overdue: live.filter((s) => s.nextBillingDate < now),

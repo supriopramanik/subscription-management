@@ -414,7 +414,9 @@ export function createApp({
         req.user,
         'added subscription',
         sub.name,
-        `${sub.currency} ${sub.amount} / ${sub.cycle}`,
+        sub.amount === null
+          ? 'Renewal tracked; amount not provided'
+          : `${sub.currency} ${sub.amount} / ${sub.cycle}`,
         session
       );
       return sub;
@@ -468,6 +470,8 @@ export function createApp({
       if (!doc) fail(404, 'Subscription not found');
       if (!canEdit(req.user, doc))
         fail(403, 'You can only record payments for your own subscriptions');
+      if (doc.amount === null)
+        fail(400, 'Set the renewal amount and currency in Edit details before recording a payment');
       if (!['active', 'trial'].includes(doc.status))
         fail(400, 'Only active or trial subscriptions can be marked paid');
       const dueDate = doc.nextBillingDate;

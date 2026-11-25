@@ -107,7 +107,32 @@ const subscriptionSchema = new Schema(
     category: { type: String, default: 'Other' },
     department: { type: String, default: 'Operations' },
     owner: ref('User', true),
-    amount: { type: Number, required: true, min: 0 },
+    amount: { type: Number, default: null, min: 0 },
+    companyDetails: {
+      type: new Schema(
+        {
+          companyType: String,
+          formationPlan: String,
+          country: String,
+          state: String,
+          formationDate: String,
+          transactionId: String,
+          owners: [
+            {
+              _id: false,
+              name: String,
+              role: String,
+              ownership: { type: Number, min: 0, max: 100, default: null },
+              email: String,
+              country: String,
+              address: String,
+            },
+          ],
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
     currency: { type: String, default: 'BDT' },
     cycle: {
       type: String,

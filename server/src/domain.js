@@ -23,6 +23,32 @@ export const userInput = z.object({
   role: z.enum(roles),
   department: text().min(1),
 });
+export const companyDetailsInput = z
+  .object({
+    companyType: text().default(''),
+    formationPlan: text().default(''),
+    country: text().default(''),
+    state: text().default(''),
+    formationDate: z.union([z.literal(''), dateString]).default(''),
+    transactionId: text().default(''),
+    owners: z
+      .array(
+        z.object({
+          name: text().min(1),
+          role: text(60).default('Owner'),
+          ownership: z.number().min(0).max(100).nullable().default(null),
+          email: z.union([z.literal(''), emailSchema]).default(''),
+          country: text().default(''),
+          address: text(500).default(''),
+        })
+      )
+      .max(20)
+      .default([]),
+  })
+  .refine(
+    (value) => value.owners.reduce((sum, owner) => sum + (owner.ownership || 0), 0) <= 100,
+    'Total ownership cannot exceed 100%'
+  );
 export const subscriptionInput = z.object({
   name: text().min(1, 'Subscription name is required'),
   vendor: text().default(''),
@@ -55,10 +81,8 @@ export const subscriptionInput = z.object({
     .finite()
     .min(0)
     .max(1e10)
-    .refine(
-      (n) => Math.abs(n * 100 - Math.round(n * 100)) < 0.0001,
-      'Use up to two decimal places'
-    ),
+    .refine((n) => Math.abs(n * 100 - Math.round(n * 100)) < 0.0001, 'Use up to two decimal places')
+    .nullable(),
   currency: z.enum(currencies),
   cycle: z.enum(['weekly', 'monthly', 'quarterly', 'yearly', 'once']),
   nextBillingDate: dateString,
@@ -67,6 +91,7 @@ export const subscriptionInput = z.object({
   seats: z.number().int().min(1).max(100000),
   paymentMethod: text().default(''),
   autoRenew: z.boolean().default(true),
+  companyDetails: companyDetailsInput.nullable().optional(),
   color: z
     .string()
     .regex(/^#[a-f\d]{6}$/i)

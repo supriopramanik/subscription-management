@@ -10,6 +10,7 @@ import {
   rebaseRates,
   groupSubscriptions,
   initials,
+  money,
 } from '../src/lib.js';
 const company = { baseCurrency: 'BDT', timezone: 'Asia/Dhaka', rates: { BDT: 1, USD: 120 } };
 test('company initials follow the configured name and tolerate extra whitespace', () => {
@@ -30,6 +31,7 @@ test('changing reporting currency previews automatic rates without modifying the
 const sub = {
   id: 'test',
   name: 'Test',
+  vendor: 'Test plan',
   amount: 10,
   currency: 'USD',
   cycle: 'monthly',
@@ -39,6 +41,38 @@ const sub = {
   autoRenew: true,
   category: 'Design',
 };
+
+test('unknown company renewal costs stay on the calendar and are excluded from spending totals', () => {
+  const unknown = {
+    ...sub,
+    id: 'company',
+    amount: null,
+    cycle: 'yearly',
+    nextBillingDate: '2026-12-01',
+  };
+  const free = { ...sub, id: 'free', amount: 0 };
+  assert.equal(money(null, 'USD'), 'Amount not provided');
+  assert.notEqual(money(0, 'USD'), 'Amount not provided');
+  assert.equal(monthlyAmount(unknown), null);
+  assert.equal(convert(null, 'USD', company), null);
+  const stats = statsFor({ company, subscriptions: [unknown, free, sub], paidThisMonth: [] });
+  assert.equal(stats.monthly, 1200);
+  assert.equal(stats.unknownAmounts, 1);
+  assert.deepEqual(stats.missing, []);
+  assert.deepEqual(stats.monthlyByCurrency, { USD: 10 });
+  assert.equal(calendarOccurrences([unknown], '2026-12', company).length, 1);
+  assert.equal(
+    forecast([unknown], company, 2, '2026-11-01').reduce((sum, m) => sum + m.amount, 0),
+    0
+  );
+  assert.equal(
+    groupSubscriptions([
+      { ...sub, bundleId: 'bundle' },
+      { ...unknown, bundleId: 'bundle', cycle: 'monthly' },
+    ])[0].amount,
+    null
+  );
+});
 test('bundled plans share one card and total while retaining independent forecasts and billing dates', () => {
   const plans = [
     {

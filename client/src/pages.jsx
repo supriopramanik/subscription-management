@@ -216,14 +216,24 @@ function Metric({
   );
 }
 export function RatesWarning({ stats, data, onSettings }) {
-  return stats.missing.length || stats.paidMissing ? (
+  return stats.missing.length || stats.paidMissing || stats.unknownAmounts ? (
     <div className="rates-warning">
       <CircleHelp size={17} />
       <span>
-        {data.company.baseCurrency}-equivalent totals exclude currencies awaiting an automatic rate
-        sync
-        {stats.missing.length ? ` (${stats.missing.join(', ')})` : ''}. Original prices remain
-        unchanged.
+        {stats.unknownAmounts > 0 && (
+          <>
+            {stats.unknownAmounts} renewal subscription(s) have no confirmed amount and are excluded
+            from spending totals.{' '}
+          </>
+        )}
+        {(stats.missing.length > 0 || stats.paidMissing) && (
+          <>
+            {data.company.baseCurrency}-equivalent totals exclude currencies awaiting an automatic
+            rate sync
+            {stats.missing.length ? ` (${stats.missing.join(', ')})` : ''}. Original prices remain
+            unchanged.
+          </>
+        )}
       </span>
       <button className="text-button" onClick={onSettings}>
         View rates <ArrowRight size={13} />
@@ -392,8 +402,8 @@ export function Overview({ data, user, onOpen, onPay, onAdd, navigate, tv }) {
             originalTotals={stats.monthlyByCurrency}
             currency={currency}
             note={
-              stats.missing.length
-                ? 'Partial total · rates needed'
+              stats.missing.length || stats.unknownAmounts
+                ? 'Partial total · amounts or rates needed'
                 : 'Normalized across billing cycles'
             }
             icon={Wallet}
@@ -468,7 +478,7 @@ export function Overview({ data, user, onOpen, onPay, onAdd, navigate, tv }) {
                 </h2>
                 <p>
                   Upcoming payments in {currency}
-                  {stats.missing.length ? ' · partial total' : ''}
+                  {stats.missing.length || stats.unknownAmounts ? ' · partial total' : ''}
                 </p>
               </div>
               <Select
@@ -677,7 +687,7 @@ export function Subscriptions({ data, user, search, onSearch, onOpen, onPay, onA
         .map((s) => [
           s.name,
           s.vendor,
-          s.amount,
+          s.amount ?? 'Amount not provided',
           s.currency,
           s.cycle,
           s.nextBillingDate,
@@ -1142,8 +1152,11 @@ export function Reports({ data, user, navigate, demo }) {
         />
         <Metric
           label="Average per subscription"
-          value={money(stats.monthly / (stats.live.length || 1), currency)}
-          note="Across active plans and free trials"
+          value={money(
+            stats.monthly / (stats.live.filter((s) => s.amount !== null).length || 1),
+            currency
+          )}
+          note="Across plans with confirmed amounts"
           icon={Layers3}
         />
       </div>
@@ -1210,7 +1223,7 @@ export function Reports({ data, user, navigate, demo }) {
                 </div>
                 <b>
                   {money(value.amount, currency)}
-                  {value.unconverted && <small>Rate needed</small>}
+                  {value.unconverted && <small>Amount or rate needed</small>}
                 </b>
               </div>
             ))}

@@ -216,6 +216,67 @@ test('subscriptions persist original currency and ownership', async () => {
   assert.equal(snapshot.body.subscriptions[0].owner.passwordHash, undefined);
   assert.equal(snapshot.body.people[0].email, undefined);
 });
+test('company renewal details persist, reject invalid ownership and cannot record an unknown charge', async () => {
+  const input = {
+    ...subBody(adminUser.id),
+    name: 'Company renewal test',
+    amount: null,
+    cycle: 'yearly',
+    nextBillingDate: '2026-12-01',
+    autoRenew: false,
+    companyDetails: {
+      companyType: 'Limited Liability Company (LLC)',
+      formationPlan: 'Business formation',
+      country: 'United States',
+      state: 'Wyoming',
+      formationDate: '2024-03-25',
+      transactionId: 'TEST-COMPANY-RENEWAL',
+      owners: [{ name: 'Test Owner', ownership: 100, email: 'owner@example.invalid' }],
+    },
+  };
+  const response = await write(admin, 'post', '/api/subscriptions', input);
+  assert.equal(response.status, 201, JSON.stringify(response.body));
+  const sub = response.body.subscription;
+  assert.equal(sub.amount, null);
+  assert.equal(sub.companyDetails.formationDate, '2024-03-25');
+  const snapshot = await viewer.get('/api/workspace');
+  assert.equal(
+    snapshot.body.subscriptions.find((s) => s.id === sub.id).companyDetails.owners[0].ownership,
+    100
+  );
+  const paid = await write(admin, 'post', `/api/subscriptions/${sub.id}/payments`, {
+    paidDate: todayInZone('Asia/Dhaka'),
+    dueDate: sub.nextBillingDate,
+  });
+  assert.equal(paid.status, 400);
+  assert.match(paid.body.error, /Set the renewal amount and currency/);
+  assert.equal(await Payment.countDocuments({ subscription: sub.id }), 0);
+  const bad = await write(admin, 'put', `/api/subscriptions/${sub.id}`, {
+    ...input,
+    companyDetails: {
+      ...input.companyDetails,
+      owners: [
+        { name: 'A', ownership: 70 },
+        { name: 'B', ownership: 50 },
+      ],
+    },
+  });
+  assert.equal(bad.status, 400);
+  const updated = await write(admin, 'put', `/api/subscriptions/${sub.id}`, {
+    ...input,
+    amount: 199,
+    nextBillingDate: '2027-12-01',
+  });
+  assert.equal(updated.status, 200);
+  assert.equal(updated.body.subscription.amount, 199);
+  assert.equal(
+    updated.body.subscription.companyDetails.transactionId,
+    input.companyDetails.transactionId
+  );
+  assert.equal(updated.body.subscription.companyDetails.formationDate, '2024-03-25');
+  assert.equal((await write(admin, 'delete', `/api/subscriptions/${sub.id}`)).status, 200);
+});
+
 test('member editing and payment permissions are enforced on the API', async () => {
   assert.equal(
     (await write(member, 'put', `/api/subscriptions/${otherSub.id}`, subBody(adminUser.id))).status,

@@ -115,6 +115,12 @@ Permissions are enforced in the API. Members cannot reassign their subscriptions
 - **TV display** receives authenticated server-sent change notifications and refetches the workspace after committed creates, edits, deletes, payments and team/settings changes. MongoDB change streams also pick up changes made through other API instances. Reconnecting, returning to the tab or coming back online refreshes the data; a 15-second check recovers missed notifications or supports TV browsers without EventSource. Regular workspace screens retain their 60-second check. No page reload is needed. Subscription cards scroll manually in their own region, with eight visible initially and up/down controls. TV display uses the signed-in employee's access and expires with their session. Use a Viewer account on a shared display; no public kiosk URL is created.
 - The renewal watch list is **in-app only**. Email, SMS, push and background reminders are not implemented; no mail service was configured.
 
+## Company renewals
+
+Company formation and renewal records use the existing subscription calendar and reminders. Enable **Company formation / renewal subscription** in Add/Edit subscription to store the company type, formation plan, country, state, formation date, transaction reference and owners/members with ownership percentages. The subscription details show a **Company Details** section and a notice when an active renewal is due within 30 days or overdue. **Update renewal** opens the subscription editor; the next renewal date stays separate from the formation date.
+
+Select **Amount not provided** when a renewal charge is unknown. These records retain their reminders, show an explicit unknown amount, and are excluded from spending totals and forecasts with a visible notice. They cannot be marked paid until the amount and currency are confirmed in Edit details. A known free subscription still uses a numeric zero. Supporting documents can be attached using the existing private Files tab.
+
 ## Files
 
 From a saved subscription, open **Files** to upload a logo or documents.
